@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@headlessui/tailwindcss": "^0.2.2",
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-query": "^5.96.0",
     "axios": "^1.14.0",
@@ -21,6 +22,7 @@
     "jwt-decode": "^4.0.0",
     "moment": "^2.30.1",
     "next": "16.2.2",
+    "next-themes": "^0.4.6",
     "react": "^19.2.4",
     "react-countup": "^6.5.3",
     "react-dom": "^19.2.4",
@@ -31,6 +33,8 @@
     "sass": "^1.98.0",
     "tailwind-merge": "^3.5.0",
     "tailwind-scrollbar": "^4.0.2",
+    "tailwind-scrollbar-hide": "^4.0.0",
+    "tailwindcss-animate": "^1.0.7",
     "typed.js": "^3.0.0",
     "zod": "^4.3.6",
     "zustand": "^5.0.12"
