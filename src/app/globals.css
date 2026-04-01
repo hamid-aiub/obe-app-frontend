@@ -1,6 +1,8 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@plugin "tailwind-scrollbar" {
+  nocompatible: true;
+}
+@plugin "@tailwindcss/typography";
 
 *,
 *::before,

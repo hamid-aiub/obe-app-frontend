@@ -1,38 +1,43 @@
-export default function Home() {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-      <div className="max-w-3xl space-y-6">
-        <h1 className="text-5xl font-extrabold text-gray-900 tracking-tight sm:text-6xl">
-          Welcome to <span className="text-blue-600">AIUB FST</span>
-        </h1>
-        <p className="text-xl text-gray-600">
-          Faculty of Science and Technology. This is a fresh starting point for the new application.
-        </p>
-        
-        <div className="flex items-center justify-center gap-4 pt-8">
-          <div className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium shadow-sm hover:bg-blue-700 transition-colors cursor-pointer">
-            Get Started
-          </div>
-          <div className="px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg font-medium shadow-sm hover:bg-gray-50 transition-colors cursor-pointer">
-            Documentation
-          </div>
-        </div>
+"use client";
+import { motion, Variants } from "framer-motion";
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-16 text-left">
-          <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-            <h3 className="font-semibold text-lg text-gray-900 mb-2">Modern Stack</h3>
-            <p className="text-gray-500 text-sm">Built with Next.js 14, React 18, and Tailwind CSS for rapid development.</p>
-          </div>
-          <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-            <h3 className="font-semibold text-lg text-gray-900 mb-2">Clean Architecture</h3>
-            <p className="text-gray-500 text-sm">Pre-configured folder structure ready for large-scale application development.</p>
-          </div>
-          <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-            <h3 className="font-semibold text-lg text-gray-900 mb-2">Ready to Build</h3>
-            <p className="text-gray-500 text-sm">Just start adding your components, pages, and logic to build out the platform.</p>
-          </div>
-        </div>
-      </div>
+export default function Home() {
+  const containerVariants: Variants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1, 
+      transition: { staggerChildren: 0.15 } 
+    }
+  };
+
+  const itemVariants: Variants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
+  return (
+    <div className="relative flex flex-col items-center justify-center flex-1 w-full mt-4 pb-20 overflow-hidden py-8">
+      {/* Background glow effects */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-blue-500/10 blur-[120px] rounded-full pointer-events-none -z-10" />
+      <div className="absolute top-0 right-1/4 w-[400px] h-[400px] bg-purple-500/10 blur-[100px] rounded-full pointer-events-none -z-10" />
+
+      <motion.div 
+        className="max-w-5xl space-y-8 w-full z-10 text-center px-4"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+   
+
+        <motion.h1 
+          variants={itemVariants} 
+          className="text-6xl md:text-7xl font-black text-slate-900 tracking-tight leading-[1.1] text-balance mb-6"
+        >
+          Welcome to the OBE Platform
+     
+        </motion.h1>
+
+      </motion.div>
     </div>
   );
 }
