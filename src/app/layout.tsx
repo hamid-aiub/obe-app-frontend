@@ -7,7 +7,7 @@ import type { Metadata } from "next";
 import { Hedvig_Letters_Serif, Inter } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 const hedvig = Hedvig_Letters_Serif({
   subsets: ["latin"],
@@ -33,9 +33,9 @@ export default function RootLayout({
         GeistMono.variable,
         hedvig.variable,
         "font-sans",
-        inter.variable
+        inter.variable,
       )}
-      suppressHydrationWarning
+      suppressHydrationWarning={true}
     >
       <body className={GeistSans.className}>
         <ThemeProvider>
