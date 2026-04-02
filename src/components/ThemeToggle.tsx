@@ -9,9 +9,7 @@ export function ThemeToggle() {
 
   useEffect(() => setMounted(true), []);
 
-  if (!mounted) {
-    return <div className="w-9 h-9" />;
-  }
+  if (!mounted) return <div className="h-9 w-9" />;
 
   const isDark = resolvedTheme === "dark";
 
@@ -20,19 +18,12 @@ export function ThemeToggle() {
       id="theme-toggle"
       aria-label={`Switch to ${isDark ? "light" : "dark"} mode`}
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      className="
-        relative w-9 h-9 rounded-lg flex items-center justify-center
-        bg-slate-100 dark:bg-slate-800
-        hover:bg-slate-200 dark:hover:bg-slate-700
-        border border-slate-200 dark:border-slate-700
-        text-slate-600 dark:text-slate-300
-        transition-all duration-300 ease-in-out
-        hover:scale-105 active:scale-95
-        cursor-pointer
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
-      "
+      className={`relative flex h-9 w-9 items-center justify-center border transition-all duration-300 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-black ${
+        isDark 
+          ? "border-white/10 bg-white/5 text-white/70 hover:text-white" 
+          : "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+      }`}
     >
-      {/* Sun icon */}
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="18"
@@ -44,7 +35,9 @@ export function ThemeToggle() {
         strokeLinecap="round"
         strokeLinejoin="round"
         className={`absolute transition-all duration-300 ${
-          isDark ? "opacity-0 rotate-90 scale-0" : "opacity-100 rotate-0 scale-100"
+          isDark
+            ? "rotate-90 scale-0 opacity-0"
+            : "rotate-0 scale-100 opacity-100"
         }`}
       >
         <circle cx="12" cy="12" r="5" />
@@ -58,7 +51,6 @@ export function ThemeToggle() {
         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
       </svg>
 
-      {/* Moon icon */}
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="18"
@@ -70,7 +62,9 @@ export function ThemeToggle() {
         strokeLinecap="round"
         strokeLinejoin="round"
         className={`absolute transition-all duration-300 ${
-          isDark ? "opacity-100 rotate-0 scale-100" : "opacity-0 -rotate-90 scale-0"
+          isDark
+            ? "rotate-0 scale-100 opacity-100"
+            : "-rotate-90 scale-0 opacity-0"
         }`}
       >
         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
