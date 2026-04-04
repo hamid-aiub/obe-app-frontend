@@ -154,7 +154,7 @@ export default function ClientLayoutWrapper({
           </header>
 
           <main className="flex-1 overflow-y-auto">
-            <div style={{ padding: "1.5rem" }}>{children}</div>
+            <div>{children}</div>
           </main>
         </div>
       </div>

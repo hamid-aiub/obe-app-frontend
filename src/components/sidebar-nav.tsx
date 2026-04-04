@@ -38,6 +38,11 @@ const menuItems: MenuItem[] = [
     icon: <LayoutDashboard className="h-4 w-4" />,
   },
   {
+    title: "Supervisor Dashboard",
+    href: "/supervisor/dashboard",
+    icon: <LayoutDashboard className="h-4 w-4" />,
+  },
+  {
     title: "Students",
     icon: <Users className="h-4 w-4" />,
     submenu: [
@@ -183,18 +188,41 @@ export function SidebarNav({ className }: { className?: string }) {
                 onClick={() => toggleSubmenu(item.title)}
                 className={cn(
                   "flex items-center justify-between rounded-md px-3 py-2.5 text-sm font-medium transition-all",
-                  "hover:bg-gray-100 dark:hover:bg-white/10",
+                  // Light mode styles
+                  "hover:bg-gray-100",
+                  // Dark mode styles
+                  "dark:hover:bg-gray-100 dark:hover:text-gray-900",
+                  "dark:text-white",
+                  // Active state
                   (isItemActive || isSubmenuActive) &&
-                    "bg-gray-100 text-black dark:bg-white/10 dark:text-white",
+                    "bg-gray-100 text-gray-900 dark:bg-gray-100 dark:text-gray-900",
+                  // Non-active state
+                  !(isItemActive || isSubmenuActive) &&
+                    "text-gray-700 dark:text-white",
                 )}
               >
                 <div className="flex items-center gap-3">
-                  {item.icon}
+                  <span
+                    className={cn(
+                      "transition-colors",
+                      isItemActive || isSubmenuActive
+                        ? "text-gray-900 dark:text-gray-900"
+                        : "text-gray-600 dark:text-white",
+                    )}
+                  >
+                    {item.icon}
+                  </span>
                   <span>{item.title}</span>
                 </div>
                 <motion.div
                   animate={{ rotate: isOpen ? 180 : 0 }}
                   transition={{ duration: 0.2 }}
+                  className={cn(
+                    "transition-colors",
+                    isItemActive || isSubmenuActive
+                      ? "text-gray-900 dark:text-gray-900"
+                      : "text-gray-600 dark:text-white",
+                  )}
                 >
                   <ChevronDown className="h-3 w-3" />
                 </motion.div>
@@ -216,12 +244,29 @@ export function SidebarNav({ className }: { className?: string }) {
                           href={subitem.href}
                           className={cn(
                             "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-all",
-                            "hover:bg-gray-100 dark:hover:bg-white/10",
+                            // Light mode styles
+                            "hover:bg-gray-100",
+                            // Dark mode styles
+                            "dark:hover:bg-gray-100 dark:hover:text-gray-900",
+                            "dark:text-white",
+                            // Active state
                             isActive(subitem.href) &&
-                              "bg-gray-100 text-black dark:bg-white/10 dark:text-white",
+                              "bg-gray-100 text-gray-900 dark:bg-gray-100 dark:text-gray-900",
+                            // Non-active state
+                            !isActive(subitem.href) &&
+                              "text-gray-700 dark:text-white",
                           )}
                         >
-                          {subitem.icon}
+                          <span
+                            className={cn(
+                              "transition-colors",
+                              isActive(subitem.href)
+                                ? "text-gray-900 dark:text-gray-900"
+                                : "text-gray-600 dark:text-white",
+                            )}
+                          >
+                            {subitem.icon}
+                          </span>
                           <span>{subitem.title}</span>
                         </Link>
                       ))}
@@ -239,12 +284,28 @@ export function SidebarNav({ className }: { className?: string }) {
             href={item.href!}
             className={cn(
               "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-all",
-              "hover:bg-gray-100 dark:hover:bg-white/10",
+              // Light mode styles
+              "hover:bg-gray-100",
+              // Dark mode styles
+              "dark:hover:bg-gray-100 dark:hover:text-gray-900",
+              "dark:text-white",
+              // Active state
               isItemActive &&
-                "bg-gray-100 text-black dark:bg-white/10 dark:text-white",
+                "bg-gray-100 text-gray-900 dark:bg-gray-100 dark:text-gray-900",
+              // Non-active state
+              !isItemActive && "text-gray-700 dark:text-white",
             )}
           >
-            {item.icon}
+            <span
+              className={cn(
+                "transition-colors",
+                isItemActive
+                  ? "text-gray-900 dark:text-gray-900"
+                  : "text-gray-600 dark:text-white",
+              )}
+            >
+              {item.icon}
+            </span>
             <span>{item.title}</span>
           </Link>
         );
