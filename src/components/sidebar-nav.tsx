@@ -42,11 +42,11 @@ const menuItems: MenuItem[] = [
     title: "Admin",
     icon: <Shield className="h-4 w-4" />,
     submenu: [
-      {
-        title: "Dashboard",
-        href: "/admin/dashboard",
-        icon: <LayoutDashboard className="h-3 w-3" />,
-      },
+      // {
+      //   title: "Dashboard",
+      //   href: "/admin/dashboard",
+      //   icon: <LayoutDashboard className="h-3 w-3" />,
+      // },
       {
         title: "Semester",
         href: "/admin/semester",
