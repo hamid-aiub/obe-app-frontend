@@ -3,16 +3,11 @@
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  BarChart,
-  BookOpen,
-  Calendar,
+  CalendarDays,
   ChevronDown,
-  FileText,
-  HelpCircle,
   LayoutDashboard,
-  MessageSquare,
-  Settings,
-  Users,
+  Shield,
+  UserCog,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -33,134 +28,40 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   {
-    title: "Dashboard",
-    href: "/dashboard",
-    icon: <LayoutDashboard className="h-4 w-4" />,
-  },
-  {
-    title: "Supervisor Dashboard",
-    href: "/supervisor/dashboard",
-    icon: <LayoutDashboard className="h-4 w-4" />,
-  },
-  {
-    title: "Students",
-    icon: <Users className="h-4 w-4" />,
+    title: "Supervisor",
+    icon: <UserCog className="h-4 w-4" />,
     submenu: [
       {
-        title: "All Students",
-        href: "/students",
-        icon: <Users className="h-3 w-3" />,
-      },
-      {
-        title: "Enrollment",
-        href: "/students/enrollment",
-        icon: <FileText className="h-3 w-3" />,
-      },
-      {
-        title: "Attendance",
-        href: "/students/attendance",
-        icon: <Calendar className="h-3 w-3" />,
-      },
-      {
-        title: "Performance",
-        href: "/students/performance",
-        icon: <BarChart className="h-3 w-3" />,
+        title: "Dashboard",
+        href: "/supervisor/dashboard",
+        icon: <LayoutDashboard className="h-3 w-3" />,
       },
     ],
   },
   {
-    title: "Courses",
-    icon: <BookOpen className="h-4 w-4" />,
+    title: "Admin",
+    icon: <Shield className="h-4 w-4" />,
     submenu: [
       {
-        title: "All Courses",
-        href: "/courses",
-        icon: <BookOpen className="h-3 w-3" />,
+        title: "Dashboard",
+        href: "/admin/dashboard",
+        icon: <LayoutDashboard className="h-3 w-3" />,
       },
       {
-        title: "Course Outline",
-        href: "/courses/outline",
-        icon: <FileText className="h-3 w-3" />,
-      },
-      {
-        title: "Assignments",
-        href: "/courses/assignments",
-        icon: <FileText className="h-3 w-3" />,
-      },
-      {
-        title: "Grading",
-        href: "/courses/grading",
-        icon: <BarChart className="h-3 w-3" />,
+        title: "Semester",
+        href: "/admin/semester",
+        icon: <CalendarDays className="h-3 w-3" />,
       },
     ],
-  },
-  {
-    title: "OBE Framework",
-    icon: <BarChart className="h-4 w-4" />,
-    submenu: [
-      {
-        title: "Program Outcomes",
-        href: "/obe/program-outcomes",
-        icon: <BarChart className="h-3 w-3" />,
-      },
-      {
-        title: "Course Outcomes",
-        href: "/obe/course-outcomes",
-        icon: <FileText className="h-3 w-3" />,
-      },
-      {
-        title: "Assessment Mapping",
-        href: "/obe/assessment",
-        icon: <FileText className="h-3 w-3" />,
-      },
-      {
-        title: "Achievement Report",
-        href: "/obe/reports",
-        icon: <BarChart className="h-3 w-3" />,
-      },
-    ],
-  },
-  {
-    title: "Reports",
-    icon: <FileText className="h-4 w-4" />,
-    submenu: [
-      {
-        title: "Analytics",
-        href: "/reports/analytics",
-        icon: <BarChart className="h-3 w-3" />,
-      },
-      {
-        title: "Accreditation",
-        href: "/reports/accreditation",
-        icon: <FileText className="h-3 w-3" />,
-      },
-      {
-        title: "Department Reports",
-        href: "/reports/department",
-        icon: <FileText className="h-3 w-3" />,
-      },
-    ],
-  },
-  {
-    title: "Messages",
-    href: "/messages",
-    icon: <MessageSquare className="h-4 w-4" />,
-  },
-  {
-    title: "Settings",
-    href: "/settings",
-    icon: <Settings className="h-4 w-4" />,
-  },
-  {
-    title: "Help",
-    href: "/help",
-    icon: <HelpCircle className="h-4 w-4" />,
   },
 ];
 
 export function SidebarNav({ className }: { className?: string }) {
   const pathname = usePathname();
-  const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({});
+  const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({
+    Supervisor: true, // Default open for better visibility
+    Admin: true, // Default open for better visibility
+  });
 
   const toggleSubmenu = (title: string) => {
     setOpenMenus((prev) => ({ ...prev, [title]: !prev[title] }));
@@ -243,7 +144,7 @@ export function SidebarNav({ className }: { className?: string }) {
                           key={subitem.href}
                           href={subitem.href}
                           className={cn(
-                            "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-all",
+                            "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all",
                             // Light mode styles
                             "hover:bg-gray-100",
                             // Dark mode styles

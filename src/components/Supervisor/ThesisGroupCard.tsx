@@ -2,7 +2,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Eye } from "lucide-react";
+import { Eye, Upload } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { statusConfig } from "./constants";
 import { ThesisGroup } from "./types";
 
@@ -17,7 +18,7 @@ export function ThesisGroupCard({
 }: ThesisGroupCardProps) {
   const status = statusConfig[group.status];
   const StatusIcon = status.icon;
-
+  const router = useRouter();
   const getStatusBadge = () => {
     return (
       <Badge
@@ -73,6 +74,15 @@ export function ThesisGroupCard({
 
       <CardContent className="pt-0 pb-0">
         <div className="flex items-center justify-end border-t border-gray-100 pt-2 dark:border-gray-800">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push("/supervisor/upload-evidence")}
+            className="h-7 gap-1.5 px-2 text-xs text-gray-600 transition-all duration-200 hover:gap-2 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+          >
+            <Upload className="h-3 w-3" />
+            <span className="text-xs font-medium">Upload Evidence</span>
+          </Button>
           <Button
             variant="ghost"
             size="sm"

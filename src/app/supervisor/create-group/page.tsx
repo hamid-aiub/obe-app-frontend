@@ -2,8 +2,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle, Plus, Trash2, Upload } from "lucide-react";
-import { useState } from "react";
+import { CheckCircle, Upload, Users } from "lucide-react";
+import { Suspense, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -18,7 +18,7 @@ const studentSchema = z.object({
   email: z.string().email("Invalid email address"),
   phoneNo: z.string().min(1, "Phone number is required"),
   creditCompleted: z.string().min(1, "Credit completed is required"),
-  creditTakeWithThesis: z.boolean().default(false),
+  creditTakeWithThesis: z.string().optional(),
   researchMethodologyCompleted: z.boolean().default(false),
 });
 
@@ -33,6 +33,7 @@ const thesisFormSchema = z.object({
     .min(20, "Description must be at least 20 characters"),
   literatureReview: z.any().optional(),
   projectProposal: z.any().optional(),
+  numberOfStudents: z.number().min(2).max(4),
   students: z
     .array(studentSchema)
     .min(2, "Minimum 2 students required")
@@ -60,9 +61,10 @@ const thesisDomains = [
   "Human-Computer Interaction",
 ];
 
-export default function ThesisCreationPage() {
+function ThesisCreationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [selectedStudentCount, setSelectedStudentCount] = useState(2);
 
   const {
     register,
@@ -71,9 +73,11 @@ export default function ThesisCreationPage() {
     formState: { errors },
     watch,
     setValue,
+    getValues,
   } = useForm<ThesisFormInput, unknown, ThesisFormData>({
     resolver: zodResolver(thesisFormSchema),
     defaultValues: {
+      numberOfStudents: 2,
       students: [
         {
           studentId: "",
@@ -82,7 +86,7 @@ export default function ThesisCreationPage() {
           email: "",
           phoneNo: "",
           creditCompleted: "",
-          creditTakeWithThesis: false,
+          creditTakeWithThesis: "",
           researchMethodologyCompleted: false,
         },
         {
@@ -92,7 +96,7 @@ export default function ThesisCreationPage() {
           email: "",
           phoneNo: "",
           creditCompleted: "",
-          creditTakeWithThesis: false,
+          creditTakeWithThesis: "",
           researchMethodologyCompleted: false,
         },
       ],
@@ -100,12 +104,64 @@ export default function ThesisCreationPage() {
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control,
     name: "students",
   });
 
   const watchStudents = watch("students");
+
+  const handleStudentCountChange = (count: number) => {
+    setSelectedStudentCount(count);
+    setValue("numberOfStudents", count);
+
+    const currentStudents = getValues("students") || [];
+
+    if (count === 2) {
+      // Keep first 2 students
+      const newStudents = currentStudents.slice(0, 2);
+      replace(newStudents);
+    } else if (count === 3) {
+      if (currentStudents.length < 3) {
+        // Add a new student
+        const newStudent = {
+          studentId: "",
+          name: "",
+          cgpa: "",
+          email: "",
+          phoneNo: "",
+          creditCompleted: "",
+          creditTakeWithThesis: "",
+          researchMethodologyCompleted: false,
+        };
+        replace([...currentStudents, newStudent]);
+      } else {
+        // Keep first 3 students
+        replace(currentStudents.slice(0, 3));
+      }
+    } else if (count === 4) {
+      if (currentStudents.length < 4) {
+        // Add new students
+        const studentsToAdd = [];
+        for (let i = currentStudents.length; i < 4; i++) {
+          studentsToAdd.push({
+            studentId: "",
+            name: "",
+            cgpa: "",
+            email: "",
+            phoneNo: "",
+            creditCompleted: "",
+            creditTakeWithThesis: "",
+            researchMethodologyCompleted: false,
+          });
+        }
+        replace([...currentStudents, ...studentsToAdd]);
+      } else {
+        // Keep first 4 students
+        replace(currentStudents.slice(0, 4));
+      }
+    }
+  };
 
   const onSubmit = async (data: ThesisFormData) => {
     setIsSubmitting(true);
@@ -115,21 +171,6 @@ export default function ThesisCreationPage() {
     setIsSubmitting(false);
     setSubmitSuccess(true);
     setTimeout(() => setSubmitSuccess(false), 5000);
-  };
-
-  const addStudent = () => {
-    if (fields.length < 4) {
-      append({
-        studentId: "",
-        name: "",
-        cgpa: "",
-        email: "",
-        phoneNo: "",
-        creditCompleted: "",
-        creditTakeWithThesis: false,
-        researchMethodologyCompleted: false,
-      });
-    }
   };
 
   return (
@@ -266,6 +307,29 @@ export default function ThesisCreationPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Number of Students *
+              </label>
+              <div className="flex gap-4">
+                {[2, 3, 4].map((count) => (
+                  <button
+                    key={count}
+                    type="button"
+                    onClick={() => handleStudentCountChange(count)}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
+                      selectedStudentCount === count
+                        ? "bg-black dark:bg-white text-white dark:text-black shadow-lg"
+                        : "bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20"
+                    }`}
+                  >
+                    <Users className="h-4 w-4" />
+                    {count} Students
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Short Description *
               </label>
               <textarea
@@ -287,12 +351,14 @@ export default function ThesisCreationPage() {
                   Literature Review (PDF)
                 </label>
                 <div className="flex items-center gap-4">
-                  <label className="flex cursor-pointer items-center gap-2 rounded-md border border-gray-300 dark:border-white/10 px-4 py-2 hover:bg-gray-50 dark:hover:bg-white/5">
-                    <Upload className="h-4 w-4" />
+                  <label className="flex cursor-pointer items-center gap-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                    <Upload className="h-4 w-4 text-gray-600 dark:text-gray-400" />
                     <span>Browse...</span>
                     <input type="file" accept=".pdf" className="hidden" />
                   </label>
-                  <span className="text-sm text-gray-500">No file chosen</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    No file chosen
+                  </span>
                 </div>
               </div>
 
@@ -301,12 +367,14 @@ export default function ThesisCreationPage() {
                   Project Proposal
                 </label>
                 <div className="flex items-center gap-4">
-                  <label className="flex cursor-pointer items-center gap-2 rounded-md border border-gray-300 dark:border-white/10 px-4 py-2 hover:bg-gray-50 dark:hover:bg-white/5">
-                    <Upload className="h-4 w-4" />
+                  <label className="flex cursor-pointer items-center gap-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                    <Upload className="h-4 w-4 text-gray-600 dark:text-gray-400" />
                     <span>Browse...</span>
                     <input type="file" accept=".pdf" className="hidden" />
                   </label>
-                  <span className="text-sm text-gray-500">No file chosen</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    No file chosen
+                  </span>
                 </div>
               </div>
             </div>
@@ -317,18 +385,11 @@ export default function ThesisCreationPage() {
         <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#050505] p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-black dark:text-white">
-              Student Information (Min 2, Max 4)
+              Student Information
             </h2>
-            {fields.length < 4 && (
-              <button
-                type="button"
-                onClick={addStudent}
-                className="flex items-center gap-2 rounded-md bg-black dark:bg-white px-4 py-2 text-sm font-medium text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
-              >
-                <Plus className="h-4 w-4" />
-                Add Student
-              </button>
-            )}
+            <p className="text-sm text-gray-500">
+              {fields.length} of {selectedStudentCount} students
+            </p>
           </div>
 
           <div className="space-y-8">
@@ -340,16 +401,6 @@ export default function ThesisCreationPage() {
                 exit={{ opacity: 0, y: -20 }}
                 className="relative rounded-lg border border-gray-200 dark:border-white/10 p-4"
               >
-                {index >= 2 && (
-                  <button
-                    type="button"
-                    onClick={() => remove(index)}
-                    className="absolute right-4 top-4 rounded-md p-1 hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
-                  </button>
-                )}
-
                 <h3 className="text-lg font-medium text-black dark:text-white mb-4">
                   Student {index + 1}
                 </h3>
@@ -453,17 +504,17 @@ export default function ThesisCreationPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 space-y-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      {...register(`students.${index}.creditTakeWithThesis`)}
-                      className="rounded border-gray-300 dark:border-white/10"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Credit Take with Thesis in next semester registration
-                    </span>
-                  </label>
+                    </label>
+                    <input
+                      {...register(`students.${index}.creditTakeWithThesis`)}
+                      className="w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0a0a0a] px-3 py-2 text-sm text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                      placeholder="e.g., 3 credits"
+                    />
+                  </div>
 
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -521,5 +572,13 @@ export default function ThesisCreationPage() {
         </div>
       </form>
     </div>
+  );
+}
+
+export default function ThesisCreationPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-7xl px-4 py-4" />}>
+      <ThesisCreationForm />
+    </Suspense>
   );
 }
