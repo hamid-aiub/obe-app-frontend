@@ -1,58 +1,857 @@
 // app/supervisor/dashboard/page.tsx
 "use client";
 
-import { DeadlinesAlert } from "@/components/Supervisor/DeadlinesAlert";
-import { DashboardHeader } from "@/components/Supervisor/Header";
 import { SemesterSelector } from "@/components/Supervisor/SemesterSelector";
 import { SupervisorNote } from "@/components/Supervisor/SupervisorNote";
 import { ThesisGroupCard } from "@/components/Supervisor/ThesisGroupCard";
 import { useThesisGroups } from "@/hooks/useThesisGroup";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Activity,
+  AlertTriangle,
+  BookOpen,
+  Calendar,
+  CheckCircle,
+  Clock,
+  Clock as ClockIcon,
+  FileText,
+  Send,
+  Trash2,
+  TrendingUp,
+  Upload,
+  UserCheck,
+  Users,
+  X,
+  XCircle,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
+
+// Types for requests
+interface ApprovalRequest {
+  id: string;
+  type: "additional_groups" | "extension" | "other";
+  status: "pending" | "approved" | "rejected";
+  requestDate: string;
+  responseDate?: string;
+  message: string;
+  attachments?: string[];
+  groupCount?: number;
+  reason?: string;
+}
 
 export default function SupervisorDashboard() {
   const { groups, selectedSemester, handleViewDetails, handleSemesterChange } =
     useThesisGroups();
-
   const router = useRouter();
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [requestMessage, setRequestMessage] = useState("");
+  const [isRequestSent, setIsRequestSent] = useState(false);
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sample data for groups by semester
+  const groupsBySemester = [
+    {
+      semester: "Spring 2025-26",
+      count: 2,
+      students: 8,
+      completed: 1,
+      ongoing: 1,
+    },
+    {
+      semester: "Fall 2025-26",
+      count: 1,
+      students: 4,
+      completed: 0,
+      ongoing: 1,
+    },
+    {
+      semester: "Summer 2025-26",
+      count: 1,
+      students: 3,
+      completed: 1,
+      ongoing: 0,
+    },
+  ];
+
+  // Sample data for recent activities
+  const recentActivities = [
+    {
+      id: "1",
+      type: "submission",
+      title: "Thesis Submitted",
+      description: "Group G01 submitted final thesis",
+      time: "2 hours ago",
+      groupNo: "G01",
+      status: "success",
+    },
+    {
+      id: "2",
+      type: "review",
+      title: "Review Required",
+      description: "Group G03 needs revision",
+      time: "5 hours ago",
+      groupNo: "G03",
+      status: "warning",
+    },
+    {
+      id: "3",
+      type: "approval",
+      title: "Request Approved",
+      description: "Additional group request approved",
+      time: "1 day ago",
+      groupNo: null,
+      status: "success",
+    },
+    {
+      id: "4",
+      type: "comment",
+      title: "New Comment",
+      description: "Admin added feedback on Group G02",
+      time: "2 days ago",
+      groupNo: "G02",
+      status: "info",
+    },
+  ];
+
+  // Sample data for approval requests
+  const [approvalRequests, setApprovalRequests] = useState<ApprovalRequest[]>([
+    {
+      id: "1",
+      type: "additional_groups",
+      status: "pending",
+      requestDate: "2026-04-01",
+      message:
+        "Requesting approval for 4th thesis group due to high student demand",
+      groupCount: 4,
+      reason: "High student demand in Machine Learning specialization",
+    },
+    {
+      id: "2",
+      type: "additional_groups",
+      status: "approved",
+      requestDate: "2026-03-15",
+      responseDate: "2026-03-18",
+      message: "Request for 3rd group approved",
+      groupCount: 3,
+      reason: "Additional workload capacity",
+    },
+    {
+      id: "3",
+      type: "extension",
+      status: "rejected",
+      requestDate: "2026-03-10",
+      responseDate: "2026-03-12",
+      message: "Request for deadline extension",
+      reason: "Medical emergency",
+    },
+  ]);
+
+  const MAX_GROUPS_WITHOUT_APPROVAL = 3;
+  const currentGroupCount = groups.length;
+  const needsApproval = currentGroupCount >= MAX_GROUPS_WITHOUT_APPROVAL;
+  const totalStudents = groupsBySemester.reduce(
+    (acc, semester) => acc + semester.students,
+    0,
+  );
+  const pendingRequests = approvalRequests.filter(
+    (r) => r.status === "pending",
+  ).length;
+
+  // Active deadlines data
+  const activeDeadlines = [
+    {
+      title: "Group Creation",
+      startDate: "Jan 10, 2026",
+      endDate: "Feb 20, 2026",
+      status: "active",
+      icon: Users,
+    },
+    {
+      title: "Mid Evidence",
+      startDate: "Mar 10, 2026",
+      endDate: "Mar 25, 2026",
+      status: "upcoming",
+      icon: FileText,
+    },
+    {
+      title: "Final Evidence",
+      startDate: "May 1, 2026",
+      endDate: "May 30, 2026",
+      status: "upcoming",
+      icon: Calendar,
+    },
+  ];
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "active":
+        return "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800";
+      case "upcoming":
+        return "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800";
+      default:
+        return "bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-400";
+    }
+  };
+
+  const getRequestStatusBadge = (status: string) => {
+    switch (status) {
+      case "approved":
+        return (
+          <span className="inline-flex items-center gap-1 rounded-full bg-green-100 dark:bg-green-900/20 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-400">
+            <CheckCircle className="h-3 w-3" />
+            Approved
+          </span>
+        );
+      case "rejected":
+        return (
+          <span className="inline-flex items-center gap-1 rounded-full bg-red-100 dark:bg-red-900/20 px-2 py-1 text-xs font-medium text-red-700 dark:text-red-400">
+            <XCircle className="h-3 w-3" />
+            Rejected
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 dark:bg-yellow-900/20 px-2 py-1 text-xs font-medium text-yellow-700 dark:text-yellow-400">
+            <ClockIcon className="h-3 w-3" />
+            Pending
+          </span>
+        );
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const validFiles = files.filter((file) => {
+      const isValidSize = file.size <= 10 * 1024 * 1024;
+      const isValidType = [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "image/jpeg",
+        "image/png",
+      ].includes(file.type);
+
+      if (!isValidSize) {
+        alert(`${file.name} is too large. Max size is 10MB.`);
+      }
+      if (!isValidType) {
+        alert(
+          `${file.name} has invalid format. Allowed: PDF, DOC, DOCX, JPG, PNG`,
+        );
+      }
+
+      return isValidSize && isValidType;
+    });
+
+    setAttachedFiles((prev) => [...prev, ...validFiles]);
+  };
+
+  const removeFile = (index: number) => {
+    setAttachedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  const getFileIcon = (fileType: string) => {
+    if (fileType.includes("pdf")) return "📄";
+    if (fileType.includes("word")) return "📝";
+    if (fileType.includes("image")) return "🖼️";
+    return "📎";
+  };
+
+  const handleRequestApproval = async () => {
+    setIsRequesting(true);
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    const newRequest: ApprovalRequest = {
+      id: Date.now().toString(),
+      type: "additional_groups",
+      status: "pending",
+      requestDate: new Date().toISOString(),
+      message: requestMessage,
+      groupCount: currentGroupCount + 1,
+      reason: requestMessage,
+    };
+
+    setApprovalRequests((prev) => [newRequest, ...prev]);
+
+    setIsRequesting(false);
+    setIsRequestSent(true);
+    setTimeout(() => {
+      setShowRequestModal(false);
+      setIsRequestSent(false);
+      setRequestMessage("");
+      setAttachedFiles([]);
+    }, 2000);
+  };
+
+  const handleAddGroup = () => {
+    if (needsApproval) {
+      setShowRequestModal(true);
+    } else {
+      router.push("/supervisor/create-group");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#040404]">
-      <div className="mx-auto max-w-7xl px-4 py-4">
-        <DashboardHeader
-          title="Supervisor Thesis Dashboard"
-          description="Manage and monitor your thesis groups"
-        />
+      <div className="mx-auto max-w-7xl px-4 py-6">
+        {/* Welcome Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-black dark:text-white">
+            Welcome back, Dr. John Smith
+          </h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            Here's an overview of your thesis supervision activities
+          </p>
+        </div>
 
-        <div className="flex justify-between">
-          <SemesterSelector
-            selectedSemester={selectedSemester}
-            onSemesterChange={handleSemesterChange}
-          />
-          <div>
-            <button
-              className="flex h-8 items-center justify-center rounded-full border border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/5 px-6 hover:bg-gray-100 dark:hover:bg-white/10"
-              onClick={() => router.push("/supervisor/create-group")}
-            >
-              <span className="text-sm font-medium text-black dark:text-white px-2">
-                + Add Group
+        {/* Stats Cards */}
+        <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="rounded-lg bg-blue-100 dark:bg-blue-900/20 p-2">
+                <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <span className="text-2xl font-bold text-black dark:text-white">
+                {groups.length}
               </span>
-            </button>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Total Groups
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+              {selectedSemester}
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="rounded-lg bg-green-100 dark:bg-green-900/20 p-2">
+                <UserCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
+              </div>
+              <span className="text-2xl font-bold text-black dark:text-white">
+                {totalStudents}
+              </span>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Total Students
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+              Across all groups
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="rounded-lg bg-purple-100 dark:bg-purple-900/20 p-2">
+                <TrendingUp className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              </div>
+              <span className="text-2xl font-bold text-black dark:text-white">
+                {groups.filter((g) => g.status === "completed").length}
+              </span>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Completed
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+              Thesis groups
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="rounded-lg bg-yellow-100 dark:bg-yellow-900/20 p-2">
+                <Clock className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+              </div>
+              <span className="text-2xl font-bold text-black dark:text-white">
+                {pendingRequests}
+              </span>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Pending Requests
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+              Awaiting response
+            </p>
           </div>
         </div>
 
-        <DeadlinesAlert />
+        {/* Active Deadlines Section */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Clock className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+            <h2 className="text-lg font-semibold text-black dark:text-white">
+              Active Deadlines
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {activeDeadlines.map((deadline) => {
+              const Icon = deadline.icon;
+              return (
+                <div
+                  key={deadline.title}
+                  className={`rounded-lg border p-4 ${getStatusColor(deadline.status)} bg-white dark:bg-[#0a0a0a]`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div
+                      className={`rounded-lg p-2 ${getStatusColor(deadline.status)}`}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <h3 className="font-medium text-black dark:text-white">
+                      {deadline.title}
+                    </h3>
+                    {deadline.status === "active" && (
+                      <span className="ml-auto text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {deadline.startDate} - {deadline.endDate}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
-        <div className="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {groups.map((group) => (
-            <ThesisGroupCard
-              key={group.id}
-              group={group}
-              onViewDetails={handleViewDetails}
+        {/* Groups by Semester Section */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+              <h2 className="text-lg font-semibold text-black dark:text-white">
+                Groups by Semester
+              </h2>
+            </div>
+            <SemesterSelector
+              selectedSemester={selectedSemester}
+              onSemesterChange={handleSemesterChange}
             />
-          ))}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 dark:bg-[#050505] rounded-lg">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                    Semester
+                  </th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-900 dark:text-white">
+                    Groups
+                  </th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-900 dark:text-white">
+                    Students
+                  </th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-900 dark:text-white">
+                    Completed
+                  </th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-900 dark:text-white">
+                    Ongoing
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {groupsBySemester.map((semester) => (
+                  <tr
+                    key={semester.semester}
+                    className="border-t border-gray-200 dark:border-white/10"
+                  >
+                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                      {semester.semester}
+                    </td>
+                    <td className="px-4 py-3 text-center text-sm text-gray-600 dark:text-gray-400">
+                      {semester.count}
+                    </td>
+                    <td className="px-4 py-3 text-center text-sm text-gray-600 dark:text-gray-400">
+                      {semester.students}
+                    </td>
+                    <td className="px-4 py-3 text-center text-sm text-green-600 dark:text-green-400">
+                      {semester.completed}
+                    </td>
+                    <td className="px-4 py-3 text-center text-sm text-yellow-600 dark:text-yellow-400">
+                      {semester.ongoing}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Two Column Layout for Recent Activities and Requests */}
+        <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recent Activities */}
+          <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                <h2 className="text-lg font-semibold text-black dark:text-white">
+                  Recent Activities
+                </h2>
+              </div>
+              <button className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+                View All
+              </button>
+            </div>
+            <div className="space-y-3">
+              {recentActivities.map((activity) => (
+                <div
+                  key={activity.id}
+                  className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5"
+                >
+                  <div
+                    className={`mt-0.5 rounded-full p-1 ${
+                      activity.status === "success"
+                        ? "bg-green-100 dark:bg-green-900/20"
+                        : activity.status === "warning"
+                          ? "bg-yellow-100 dark:bg-yellow-900/20"
+                          : "bg-blue-100 dark:bg-blue-900/20"
+                    }`}
+                  >
+                    {activity.type === "submission" && (
+                      <FileText className="h-3 w-3 text-green-600" />
+                    )}
+                    {activity.type === "review" && (
+                      <AlertTriangle className="h-3 w-3 text-yellow-600" />
+                    )}
+                    {activity.type === "approval" && (
+                      <CheckCircle className="h-3 w-3 text-blue-600" />
+                    )}
+                    {activity.type === "comment" && (
+                      <Activity className="h-3 w-3 text-purple-600" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-medium text-black dark:text-white">
+                        {activity.title}
+                      </h3>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {activity.time}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                      {activity.description}
+                    </p>
+                    {activity.groupNo && (
+                      <span className="text-xs text-blue-600 dark:text-blue-400 mt-1 inline-block">
+                        Group {activity.groupNo}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Approval Requests Status */}
+          <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Send className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                <h2 className="text-lg font-semibold text-black dark:text-white">
+                  Approval Requests
+                </h2>
+              </div>
+              {needsApproval && (
+                <button
+                  onClick={handleAddGroup}
+                  className="rounded-lg bg-yellow-600 px-3 py-1 text-xs font-medium text-white hover:bg-yellow-700"
+                >
+                  New Request
+                </button>
+              )}
+            </div>
+            <div className="space-y-3">
+              {approvalRequests.length > 0 ? (
+                approvalRequests.map((request) => (
+                  <div
+                    key={request.id}
+                    className="border-b border-gray-100 dark:border-white/10 pb-3 last:border-0"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <h3 className="text-sm font-medium text-black dark:text-white">
+                          {request.type === "additional_groups"
+                            ? "Additional Groups Request"
+                            : "Extension Request"}
+                        </h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          Requested on{" "}
+                          {new Date(request.requestDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                      {getRequestStatusBadge(request.status)}
+                    </div>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                      {request.message}
+                    </p>
+                    {request.status !== "pending" && request.responseDate && (
+                      <p className="text-xs text-gray-500 dark:text-gray-500">
+                        Responded:{" "}
+                        {new Date(request.responseDate).toLocaleDateString()}
+                      </p>
+                    )}
+                    {request.status === "pending" && (
+                      <div className="mt-2 h-1 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div className="h-full w-2/3 bg-yellow-500 rounded-full animate-pulse" />
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                  No approval requests found
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Groups Limit Warning Banner */}
+        {needsApproval && (
+          <div className="mb-6">
+            <div className="rounded-lg border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+                  <div>
+                    <h3 className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">
+                      Department Approval Required
+                    </h3>
+                    <p className="text-sm text-yellow-700 dark:text-yellow-300/80 mt-1">
+                      You currently have {currentGroupCount} thesis groups. For
+                      more than {MAX_GROUPS_WITHOUT_APPROVAL} groups, you need
+                      approval from the department.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleAddGroup}
+                  className="flex items-center gap-2 rounded-lg bg-yellow-600 hover:bg-yellow-700 px-4 py-2 text-sm font-medium text-white transition-colors"
+                >
+                  <Send className="h-4 w-4" />
+                  Request Approval
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Thesis Groups Grid */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-black dark:text-white">
+              Current Thesis Groups
+            </h2>
+            {!needsApproval && (
+              <button
+                onClick={handleAddGroup}
+                className="rounded-lg bg-black dark:bg-white px-4 py-2 text-sm font-medium text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200"
+              >
+                + Add Group
+              </button>
+            )}
+          </div>
+
+          {groups.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {groups.map((group) => (
+                <ThesisGroupCard
+                  key={group.id}
+                  group={group}
+                  onViewDetails={handleViewDetails}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] py-12 px-4">
+              <div className="rounded-full bg-gray-100 dark:bg-white/10 p-4 mb-4">
+                <Users className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-black dark:text-white mb-2">
+                No Thesis Groups Found
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 text-center max-w-md mb-6">
+                You haven't been assigned any thesis groups for{" "}
+                {selectedSemester}. Groups will appear here once assigned by the
+                admin or you can create a new group.
+              </p>
+              <button
+                onClick={handleAddGroup}
+                className="flex items-center gap-2 rounded-lg bg-black dark:bg-white px-4 py-2 text-sm font-medium text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+              >
+                <span>+ Create New Group</span>
+              </button>
+            </div>
+          )}
         </div>
 
         <SupervisorNote />
+
+        {/* Request Approval Modal with File Upload */}
+        <AnimatePresence>
+          {showRequestModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="relative w-full max-w-lg rounded-lg bg-white dark:bg-[#0a0a0a] shadow-xl max-h-[90vh] overflow-y-auto"
+              >
+                <div className="sticky top-0 flex items-center justify-between border-b border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] p-4">
+                  <h2 className="text-lg font-semibold text-black dark:text-white">
+                    Request Department Approval
+                  </h2>
+                  <button
+                    onClick={() => setShowRequestModal(false)}
+                    className="rounded-lg p-1 hover:bg-gray-100 dark:hover:bg-white/10"
+                  >
+                    <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                  </button>
+                </div>
+
+                <div className="p-4 space-y-4">
+                  <div className="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 p-3">
+                    <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                      You currently have {currentGroupCount} thesis groups.
+                      Adding more than {MAX_GROUPS_WITHOUT_APPROVAL} groups
+                      requires department approval. Please provide a reason and
+                      supporting documents.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Reason for Request *
+                    </label>
+                    <textarea
+                      value={requestMessage}
+                      onChange={(e) => setRequestMessage(e.target.value)}
+                      rows={4}
+                      className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0a0a0a] p-2 text-sm text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                      placeholder="e.g., High student demand, specialized expertise, additional workload capacity, etc."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Supporting Documents (Optional)
+                    </label>
+                    <div className="space-y-3">
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-[#050505] px-4 py-3 text-sm text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
+                      >
+                        <Upload className="h-4 w-4" />
+                        Click to upload or drag and drop
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Supported formats: PDF, DOC, DOCX, JPG, PNG (Max size:
+                        10MB each)
+                      </p>
+
+                      {attachedFiles.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                            Attached Files ({attachedFiles.length})
+                          </p>
+                          {attachedFiles.map((file, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#050505] p-2"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg">
+                                  {getFileIcon(file.type)}
+                                </span>
+                                <div>
+                                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate max-w-[200px]">
+                                    {file.name}
+                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    {formatFileSize(file.size)}
+                                  </p>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => removeFile(index)}
+                                className="rounded-lg p-1 hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={handleRequestApproval}
+                      disabled={!requestMessage.trim() || isRequesting}
+                      className="flex-1 rounded-lg bg-yellow-600 px-4 py-2 text-sm font-medium text-white hover:bg-yellow-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isRequesting ? "Sending..." : "Send Request"}
+                    </button>
+                    <button
+                      onClick={() => setShowRequestModal(false)}
+                      className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Success Toast */}
+        <AnimatePresence>
+          {isRequestSent && (
+            <motion.div
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 50 }}
+              className="fixed bottom-4 right-4 z-50 rounded-lg bg-green-100 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4 shadow-lg"
+            >
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-green-200 dark:bg-green-800 p-1">
+                  <Send className="h-4 w-4 text-green-700 dark:text-green-300" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-green-800 dark:text-green-300">
+                    Request sent successfully!
+                  </p>
+                  {attachedFiles.length > 0 && (
+                    <p className="text-xs text-green-700 dark:text-green-400">
+                      {attachedFiles.length} file(s) attached
+                    </p>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

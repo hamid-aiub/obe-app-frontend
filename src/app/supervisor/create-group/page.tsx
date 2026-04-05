@@ -15,11 +15,16 @@ const studentSchema = z.object({
     .string()
     .min(1, "CGPA is required")
     .regex(/^\d+\.?\d*$/, "Invalid CGPA format"),
-  email: z.string().email("Invalid email address"),
+  primaryEmail: z
+    .string()
+    .min(1, "Primary email is required")
+    .email("Invalid email address")
+    .regex(/@student\.aiub\.edu$/, "Email must end with @student.aiub.edu"),
+  secondaryEmail: z.string().email("Invalid email address").optional(),
   phoneNo: z.string().min(1, "Phone number is required"),
   creditCompleted: z.string().min(1, "Credit completed is required"),
   creditTakeWithThesis: z.string().optional(),
-  researchMethodologyCompleted: z.boolean().default(false),
+  researchMethodologyCompleted: z.enum(["yes", "no"]).default("no"),
 });
 
 const thesisFormSchema = z.object({
@@ -45,6 +50,7 @@ const thesisFormSchema = z.object({
 
 type ThesisFormData = z.infer<typeof thesisFormSchema>;
 type ThesisFormInput = z.input<typeof thesisFormSchema>;
+type StudentFormData = ThesisFormData["students"][number];
 
 const thesisDomains = [
   "Machine Learning",
@@ -60,6 +66,18 @@ const thesisDomains = [
   "Software Engineering",
   "Human-Computer Interaction",
 ];
+
+const createEmptyStudent = (): StudentFormData => ({
+  studentId: "",
+  name: "",
+  cgpa: "",
+  primaryEmail: "",
+  secondaryEmail: "",
+  phoneNo: "",
+  creditCompleted: "",
+  creditTakeWithThesis: "",
+  researchMethodologyCompleted: "no",
+});
 
 function ThesisCreationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -78,38 +96,15 @@ function ThesisCreationForm() {
     resolver: zodResolver(thesisFormSchema),
     defaultValues: {
       numberOfStudents: 2,
-      students: [
-        {
-          studentId: "",
-          name: "",
-          cgpa: "",
-          email: "",
-          phoneNo: "",
-          creditCompleted: "",
-          creditTakeWithThesis: "",
-          researchMethodologyCompleted: false,
-        },
-        {
-          studentId: "",
-          name: "",
-          cgpa: "",
-          email: "",
-          phoneNo: "",
-          creditCompleted: "",
-          creditTakeWithThesis: "",
-          researchMethodologyCompleted: false,
-        },
-      ],
+      students: [createEmptyStudent(), createEmptyStudent()],
       acceptTerms: false,
     },
   });
 
-  const { fields, append, remove, replace } = useFieldArray({
+  const { fields, replace } = useFieldArray({
     control,
     name: "students",
   });
-
-  const watchStudents = watch("students");
 
   const handleStudentCountChange = (count: number) => {
     setSelectedStudentCount(count);
@@ -124,17 +119,7 @@ function ThesisCreationForm() {
     } else if (count === 3) {
       if (currentStudents.length < 3) {
         // Add a new student
-        const newStudent = {
-          studentId: "",
-          name: "",
-          cgpa: "",
-          email: "",
-          phoneNo: "",
-          creditCompleted: "",
-          creditTakeWithThesis: "",
-          researchMethodologyCompleted: false,
-        };
-        replace([...currentStudents, newStudent]);
+        replace([...currentStudents, createEmptyStudent()]);
       } else {
         // Keep first 3 students
         replace(currentStudents.slice(0, 3));
@@ -142,18 +127,9 @@ function ThesisCreationForm() {
     } else if (count === 4) {
       if (currentStudents.length < 4) {
         // Add new students
-        const studentsToAdd = [];
+        const studentsToAdd: StudentFormData[] = [];
         for (let i = currentStudents.length; i < 4; i++) {
-          studentsToAdd.push({
-            studentId: "",
-            name: "",
-            cgpa: "",
-            email: "",
-            phoneNo: "",
-            creditCompleted: "",
-            creditTakeWithThesis: "",
-            researchMethodologyCompleted: false,
-          });
+          studentsToAdd.push(createEmptyStudent());
         }
         replace([...currentStudents, ...studentsToAdd]);
       } else {
@@ -204,184 +180,187 @@ function ThesisCreationForm() {
           )}
         </AnimatePresence>
 
-        {/* Supervisor Information */}
-        <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#050505] p-6">
-          <h2 className="text-xl font-semibold text-black dark:text-white mb-6">
-            Supervisor Information
-          </h2>
-          <div className="grid gap-6 md:grid-cols-2">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Supervisor ID *
-              </label>
-              <input
-                {...register("supervisorId")}
-                className="w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
-                placeholder="e.g., S001"
-              />
-              {errors.supervisorId && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                  {errors.supervisorId.message}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Supervisor Name *
-              </label>
-              <input
-                {...register("supervisorName")}
-                className="w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
-                placeholder="Dr. John Doe"
-              />
-              {errors.supervisorName && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                  {errors.supervisorName.message}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Supervisor Email *
-              </label>
-              <input
-                {...register("supervisorEmail")}
-                type="email"
-                className="w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
-                placeholder="john.doe@example.com"
-              />
-              {errors.supervisorEmail && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                  {errors.supervisorEmail.message}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Thesis Information */}
-        <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#050505] p-6">
-          <h2 className="text-xl font-semibold text-black dark:text-white mb-6">
-            Thesis Information
-          </h2>
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Proposed Thesis Title *
-              </label>
-              <input
-                {...register("proposedTitle")}
-                className="w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
-                placeholder="Enter your thesis title"
-              />
-              {errors.proposedTitle && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                  {errors.proposedTitle.message}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Thesis Domain *
-              </label>
-              <select
-                {...register("thesisDomain")}
-                className="w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
-              >
-                <option value="">Select a domain</option>
-                {thesisDomains.map((domain) => (
-                  <option key={domain} value={domain}>
-                    {domain}
-                  </option>
-                ))}
-              </select>
-              {errors.thesisDomain && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                  {errors.thesisDomain.message}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Number of Students *
-              </label>
-              <div className="flex gap-4">
-                {[2, 3, 4].map((count) => (
-                  <button
-                    key={count}
-                    type="button"
-                    onClick={() => handleStudentCountChange(count)}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
-                      selectedStudentCount === count
-                        ? "bg-black dark:bg-white text-white dark:text-black shadow-lg"
-                        : "bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20"
-                    }`}
-                  >
-                    <Users className="h-4 w-4" />
-                    {count} Students
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Short Description *
-              </label>
-              <textarea
-                {...register("shortDescription")}
-                rows={4}
-                className="w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
-                placeholder="Provide a brief description of your thesis..."
-              />
-              {errors.shortDescription && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                  {errors.shortDescription.message}
-                </p>
-              )}
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-2">
+        {/* Supervisor and Thesis Information - Side by Side on Large Screens */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Supervisor Information */}
+          <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#050505] p-6">
+            <h2 className="text-xl font-semibold text-black dark:text-white mb-6">
+              Supervisor Information
+            </h2>
+            <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Literature Review (PDF)
+                  Supervisor ID *
                 </label>
-                <div className="flex items-center gap-4">
-                  <label className="flex cursor-pointer items-center gap-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                    <Upload className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-                    <span>Browse...</span>
-                    <input type="file" accept=".pdf" className="hidden" />
-                  </label>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    No file chosen
-                  </span>
+                <input
+                  {...register("supervisorId")}
+                  className="w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                  placeholder="e.g., S001"
+                />
+                {errors.supervisorId && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    {errors.supervisorId.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Supervisor Name *
+                </label>
+                <input
+                  {...register("supervisorName")}
+                  className="w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                  placeholder="Dr. John Doe"
+                />
+                {errors.supervisorName && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    {errors.supervisorName.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Supervisor Email *
+                </label>
+                <input
+                  {...register("supervisorEmail")}
+                  type="email"
+                  className="w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                  placeholder="john.doe@example.com"
+                />
+                {errors.supervisorEmail && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    {errors.supervisorEmail.message}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Thesis Information */}
+          <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#050505] p-6">
+            <h2 className="text-xl font-semibold text-black dark:text-white mb-6">
+              Thesis Information
+            </h2>
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Proposed Thesis Title *
+                </label>
+                <input
+                  {...register("proposedTitle")}
+                  className="w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                  placeholder="Enter your thesis title"
+                />
+                {errors.proposedTitle && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    {errors.proposedTitle.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Thesis Domain *
+                </label>
+                <select
+                  {...register("thesisDomain")}
+                  className="w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                >
+                  <option value="">Select a domain</option>
+                  {thesisDomains.map((domain) => (
+                    <option key={domain} value={domain}>
+                      {domain}
+                    </option>
+                  ))}
+                </select>
+                {errors.thesisDomain && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    {errors.thesisDomain.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Number of Students *
+                </label>
+                <div className="flex gap-4">
+                  {[2, 3, 4].map((count) => (
+                    <button
+                      key={count}
+                      type="button"
+                      onClick={() => handleStudentCountChange(count)}
+                      className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
+                        selectedStudentCount === count
+                          ? "bg-black dark:bg-white text-white dark:text-black shadow-lg"
+                          : "bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20"
+                      }`}
+                    >
+                      <Users className="h-4 w-4" />
+                      {count}
+                    </button>
+                  ))}
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Project Proposal
+                  Short Description *
                 </label>
-                <div className="flex items-center gap-4">
-                  <label className="flex cursor-pointer items-center gap-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                    <Upload className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-                    <span>Browse...</span>
-                    <input type="file" accept=".pdf" className="hidden" />
+                <textarea
+                  {...register("shortDescription")}
+                  rows={4}
+                  className="w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                  placeholder="Provide a brief description of your thesis..."
+                />
+                {errors.shortDescription && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    {errors.shortDescription.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Literature Review (PDF)
                   </label>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    No file chosen
-                  </span>
+                  <div className="flex items-center gap-4">
+                    <label className="flex cursor-pointer items-center gap-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                      <Upload className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                      <span>Browse...</span>
+                      <input type="file" accept=".pdf" className="hidden" />
+                    </label>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      No file chosen
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Project Proposal
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <label className="flex cursor-pointer items-center gap-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                      <Upload className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                      <span>Browse...</span>
+                      <input type="file" accept=".pdf" className="hidden" />
+                    </label>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      No file chosen
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Student Information */}
+        {/* Student Information - 2 per row on large screens */}
         <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#050505] p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-black dark:text-white">
@@ -392,7 +371,7 @@ function ThesisCreationForm() {
             </p>
           </div>
 
-          <div className="space-y-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {fields.map((field, index) => (
               <motion.div
                 key={field.id}
@@ -405,7 +384,7 @@ function ThesisCreationForm() {
                   Student {index + 1}
                 </h3>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Student ID *
@@ -456,17 +435,34 @@ function ThesisCreationForm() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Active Email *
+                      Primary Email * (@student.aiub.edu)
                     </label>
                     <input
-                      {...register(`students.${index}.email`)}
+                      {...register(`students.${index}.primaryEmail`)}
                       type="email"
                       className="w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0a0a0a] px-3 py-2 text-sm text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
-                      placeholder="student@example.com"
+                      placeholder="student-id@student.aiub.edu"
                     />
-                    {errors.students?.[index]?.email && (
+                    {errors.students?.[index]?.primaryEmail && (
                       <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-                        {errors.students[index]?.email?.message}
+                        {errors.students[index]?.primaryEmail?.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Secondary Email (Optional)
+                    </label>
+                    <input
+                      {...register(`students.${index}.secondaryEmail`)}
+                      type="email"
+                      className="w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0a0a0a] px-3 py-2 text-sm text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                      placeholder="personal.email@example.com"
+                    />
+                    {errors.students?.[index]?.secondaryEmail && (
+                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                        {errors.students[index]?.secondaryEmail?.message}
                       </p>
                     )}
                   </div>
@@ -502,9 +498,7 @@ function ThesisCreationForm() {
                       </p>
                     )}
                   </div>
-                </div>
 
-                <div className="mt-4 space-y-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Credit Take with Thesis in next semester registration
@@ -516,18 +510,47 @@ function ThesisCreationForm() {
                     />
                   </div>
 
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      {...register(
-                        `students.${index}.researchMethodologyCompleted`,
-                      )}
-                      className="rounded border-gray-300 dark:border-white/10"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      Research Methodology completed?
-                    </span>
-                  </label>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Research Methodology Completed *
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          value="yes"
+                          {...register(
+                            `students.${index}.researchMethodologyCompleted`,
+                          )}
+                          className="rounded border-gray-300 dark:border-white/10"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                          Yes
+                        </span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          value="no"
+                          {...register(
+                            `students.${index}.researchMethodologyCompleted`,
+                          )}
+                          className="rounded border-gray-300 dark:border-white/10"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                          No
+                        </span>
+                      </label>
+                    </div>
+                    {errors.students?.[index]?.researchMethodologyCompleted && (
+                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                        {
+                          errors.students[index]?.researchMethodologyCompleted
+                            ?.message
+                        }
+                      </p>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             ))}

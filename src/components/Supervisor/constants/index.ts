@@ -42,13 +42,13 @@ export const mockGroups: ThesisGroup[] = [
     groupNo: "Thesis [BSCS] [G48]",
     status: "submitted",
   },
-  {
-    id: "G03",
-    name: "G03",
-    domain: "Data Science",
-    groupNo: "Thesis [BSCS] [G67]",
-    status: "action_needed",
-  },
+  // {
+  //   id: "G03",
+  //   name: "G03",
+  //   domain: "Data Science",
+  //   groupNo: "Thesis [BSCS] [G67]",
+  //   status: "action_needed",
+  // },
 ];
 
 export const semesters = [

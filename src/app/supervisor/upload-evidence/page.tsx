@@ -318,55 +318,55 @@ export default function UploadEvidencePage() {
                   </span>
                 </div>
               </div>
-            </div>
-            <div className="flex gap-4 mt-4">
-              {/* Plagiarism Percentage */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Plagiarism Percentage{" "}
-                  <span className="text-xs text-red-600">(max 19%)</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="0.1"
-                    {...register("plagiarismPercentage")}
-                    className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
-                    placeholder="Enter percentage"
-                  />
-                  <span className="absolute right-3 top-2 text-gray-500">
-                    %
-                  </span>
+              <div className="flex gap-4">
+                {/* Plagiarism Percentage */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Plagiarism Percentage{" "}
+                    <span className="text-xs text-red-600">(max 19%)</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.1"
+                      {...register("plagiarismPercentage")}
+                      className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                      placeholder="Enter percentage"
+                    />
+                    <span className="absolute right-3 top-2 text-gray-500">
+                      %
+                    </span>
+                  </div>
+                  {errors.plagiarismPercentage && (
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                      {errors.plagiarismPercentage.message}
+                    </p>
+                  )}
                 </div>
-                {errors.plagiarismPercentage && (
-                  <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-                    {errors.plagiarismPercentage.message}
-                  </p>
-                )}
-              </div>
-              {/* AI Detection Percentage */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  AI Detection Percentage{" "}
-                  <span className="text-xs text-red-600">(max 15%)</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="0.1"
-                    {...register("aiDetectionPercentage")}
-                    className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
-                    placeholder="Enter percentage"
-                  />
-                  <span className="absolute right-3 top-2 text-gray-500">
-                    %
-                  </span>
+                {/* AI Detection Percentage */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    AI Detection Percentage{" "}
+                    <span className="text-xs text-red-600">(max 15%)</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.1"
+                      {...register("aiDetectionPercentage")}
+                      className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                      placeholder="Enter percentage"
+                    />
+                    <span className="absolute right-3 top-2 text-gray-500">
+                      %
+                    </span>
+                  </div>
+                  {errors.aiDetectionPercentage && (
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                      {errors.aiDetectionPercentage.message}
+                    </p>
+                  )}
                 </div>
-                {errors.aiDetectionPercentage && (
-                  <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-                    {errors.aiDetectionPercentage.message}
-                  </p>
-                )}
               </div>
             </div>
           </div>

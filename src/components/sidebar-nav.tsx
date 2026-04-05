@@ -38,6 +38,11 @@ const menuItems: MenuItem[] = [
         href: "/supervisor/dashboard",
         icon: <LayoutDashboard className="h-3 w-3" />,
       },
+      {
+        title: "Groups",
+        href: "/supervisor/groups",
+        icon: <Group className="h-3 w-3" />,
+      },
     ],
   },
   {
