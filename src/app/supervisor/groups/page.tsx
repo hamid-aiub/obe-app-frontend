@@ -2,7 +2,6 @@
 "use client";
 
 import { SemesterSelector } from "@/components/Supervisor/SemesterSelector";
-import { SupervisorNote } from "@/components/Supervisor/SupervisorNote";
 import { ThesisGroupCard } from "@/components/Supervisor/ThesisGroupCard";
 import { useThesisGroups } from "@/hooks/useThesisGroup";
 import { AnimatePresence, motion } from "framer-motion";
@@ -323,7 +322,7 @@ export default function SupervisorDashboard() {
           </div>
         )}
 
-        <SupervisorNote />
+        {/* <SupervisorNote /> */}
 
         {/* Request Approval Modal with File Upload */}
         <AnimatePresence>

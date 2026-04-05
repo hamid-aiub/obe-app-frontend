@@ -2,8 +2,6 @@
 "use client";
 
 import { SemesterSelector } from "@/components/Supervisor/SemesterSelector";
-import { SupervisorNote } from "@/components/Supervisor/SupervisorNote";
-import { ThesisGroupCard } from "@/components/Supervisor/ThesisGroupCard";
 import { useThesisGroups } from "@/hooks/useThesisGroup";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -646,57 +644,6 @@ export default function SupervisorDashboard() {
             </div>
           </div>
         )}
-
-        {/* Thesis Groups Grid */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-black dark:text-white">
-              Current Thesis Groups
-            </h2>
-            {!needsApproval && (
-              <button
-                onClick={handleAddGroup}
-                className="rounded-lg bg-black dark:bg-white px-4 py-2 text-sm font-medium text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200"
-              >
-                + Add Group
-              </button>
-            )}
-          </div>
-
-          {groups.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {groups.map((group) => (
-                <ThesisGroupCard
-                  key={group.id}
-                  group={group}
-                  onViewDetails={handleViewDetails}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] py-12 px-4">
-              <div className="rounded-full bg-gray-100 dark:bg-white/10 p-4 mb-4">
-                <Users className="h-8 w-8 text-gray-400 dark:text-gray-500" />
-              </div>
-              <h3 className="text-lg font-semibold text-black dark:text-white mb-2">
-                No Thesis Groups Found
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 text-center max-w-md mb-6">
-                You haven't been assigned any thesis groups for{" "}
-                {selectedSemester}. Groups will appear here once assigned by the
-                admin or you can create a new group.
-              </p>
-              <button
-                onClick={handleAddGroup}
-                className="flex items-center gap-2 rounded-lg bg-black dark:bg-white px-4 py-2 text-sm font-medium text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
-              >
-                <span>+ Create New Group</span>
-              </button>
-            </div>
-          )}
-        </div>
-
-        <SupervisorNote />
 
         {/* Request Approval Modal with File Upload */}
         <AnimatePresence>
