@@ -1,7 +1,6 @@
 // app/supervisor/dashboard/page.tsx
 "use client";
 
-import { DeadlinesAlert } from "@/components/Supervisor/DeadlinesAlert";
 import { SemesterSelector } from "@/components/Supervisor/SemesterSelector";
 import { SupervisorNote } from "@/components/Supervisor/SupervisorNote";
 import { ThesisGroupCard } from "@/components/Supervisor/ThesisGroupCard";
@@ -289,7 +288,7 @@ export default function SupervisorDashboard() {
         </div>
 
         {/* Deadlines Alert - Keep for backward compatibility */}
-        <DeadlinesAlert />
+        {/* <DeadlinesAlert /> */}
 
         {/* Thesis Groups Grid or Empty State */}
         {groups.length > 0 ? (
