@@ -5,6 +5,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   CalendarDays,
   ChevronDown,
+  DockIcon,
+  Group,
   LayoutDashboard,
   Shield,
   UserCog,
@@ -42,15 +44,25 @@ const menuItems: MenuItem[] = [
     title: "Admin",
     icon: <Shield className="h-4 w-4" />,
     submenu: [
-      // {
-      //   title: "Dashboard",
-      //   href: "/admin/dashboard",
-      //   icon: <LayoutDashboard className="h-3 w-3" />,
-      // },
+      {
+        title: "Dashboard",
+        href: "/admin/dashboard",
+        icon: <LayoutDashboard className="h-3 w-3" />,
+      },
       {
         title: "Semester",
         href: "/admin/semester",
         icon: <CalendarDays className="h-3 w-3" />,
+      },
+      {
+        title: "Groups",
+        href: "/admin/thesis-groups",
+        icon: <Group className="h-3 w-3" />,
+      },
+      {
+        title: "Documents",
+        href: "/admin/documents",
+        icon: <DockIcon className="h-3 w-3" />,
       },
     ],
   },
@@ -59,8 +71,8 @@ const menuItems: MenuItem[] = [
 export function SidebarNav({ className }: { className?: string }) {
   const pathname = usePathname();
   const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({
-    Supervisor: true, // Default open for better visibility
-    Admin: true, // Default open for better visibility
+    Supervisor: true,
+    Admin: true,
   });
 
   const toggleSubmenu = (title: string) => {
@@ -76,13 +88,10 @@ export function SidebarNav({ className }: { className?: string }) {
       {menuItems.map((item) => {
         const hasSubmenu = item.submenu && item.submenu.length > 0;
         const isOpen = openMenus[item.title];
-        const isItemActive = item.href ? isActive(item.href) : false;
+        const isSubmenuActive =
+          hasSubmenu && item.submenu?.some((sub) => isActive(sub.href));
 
         if (hasSubmenu) {
-          const isSubmenuActive = item.submenu?.some((sub) =>
-            isActive(sub.href),
-          );
-
           return (
             <div key={item.title} className="flex flex-col">
               <button
@@ -94,23 +103,12 @@ export function SidebarNav({ className }: { className?: string }) {
                   // Dark mode styles
                   "dark:hover:bg-gray-100 dark:hover:text-gray-900",
                   "dark:text-white",
-                  // Active state
-                  (isItemActive || isSubmenuActive) &&
-                    "bg-gray-100 text-gray-900 dark:bg-gray-100 dark:text-gray-900",
-                  // Non-active state
-                  !(isItemActive || isSubmenuActive) &&
-                    "text-gray-700 dark:text-white",
+                  // Always show default color for main menu (no active background)
+                  "text-gray-700 dark:text-white",
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <span
-                    className={cn(
-                      "transition-colors",
-                      isItemActive || isSubmenuActive
-                        ? "text-gray-900 dark:text-gray-900"
-                        : "text-gray-600 dark:text-white",
-                    )}
-                  >
+                  <span className="text-gray-600 dark:text-white">
                     {item.icon}
                   </span>
                   <span>{item.title}</span>
@@ -118,12 +116,7 @@ export function SidebarNav({ className }: { className?: string }) {
                 <motion.div
                   animate={{ rotate: isOpen ? 180 : 0 }}
                   transition={{ duration: 0.2 }}
-                  className={cn(
-                    "transition-colors",
-                    isItemActive || isSubmenuActive
-                      ? "text-gray-900 dark:text-gray-900"
-                      : "text-gray-600 dark:text-white",
-                  )}
+                  className="text-gray-600 dark:text-white"
                 >
                   <ChevronDown className="h-3 w-3" />
                 </motion.div>
@@ -150,7 +143,7 @@ export function SidebarNav({ className }: { className?: string }) {
                             // Dark mode styles
                             "dark:hover:bg-gray-100 dark:hover:text-gray-900",
                             "dark:text-white",
-                            // Active state
+                            // Active state - only for submenu items
                             isActive(subitem.href) &&
                               "bg-gray-100 text-gray-900 dark:bg-gray-100 dark:text-gray-900",
                             // Non-active state
@@ -190,23 +183,11 @@ export function SidebarNav({ className }: { className?: string }) {
               // Dark mode styles
               "dark:hover:bg-gray-100 dark:hover:text-gray-900",
               "dark:text-white",
-              // Active state
-              isItemActive &&
-                "bg-gray-100 text-gray-900 dark:bg-gray-100 dark:text-gray-900",
-              // Non-active state
-              !isItemActive && "text-gray-700 dark:text-white",
+              // Always show default color for main menu items
+              "text-gray-700 dark:text-white",
             )}
           >
-            <span
-              className={cn(
-                "transition-colors",
-                isItemActive
-                  ? "text-gray-900 dark:text-gray-900"
-                  : "text-gray-600 dark:text-white",
-              )}
-            >
-              {item.icon}
-            </span>
+            <span className="text-gray-600 dark:text-white">{item.icon}</span>
             <span>{item.title}</span>
           </Link>
         );

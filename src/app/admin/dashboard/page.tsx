@@ -1,507 +1,513 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { SemesterSelector } from "@/components/Supervisor/SemesterSelector";
+import { motion } from "framer-motion";
 import {
+  Activity,
   AlertCircle,
+  Award,
+  BarChart3,
   CheckCircle,
-  ChevronDown,
   Clock,
   Download,
   Eye,
   FileText,
-  Filter,
+  GraduationCap,
+  MessageSquare,
   RefreshCw,
-  Search,
+  UserCheck,
+  Users,
   XCircle,
 } from "lucide-react";
 import { useState } from "react";
 
-interface ThesisGroup {
+interface Activity {
   id: string;
-  classId: string;
+  type: "submission" | "approval" | "rejection" | "comment";
+  title: string;
+  description: string;
+  time: string;
   groupNo: string;
-  supervisorId: string;
-  supervisorName: string;
-  extId: string;
-  students: {
-    id: string;
-    name: string;
-  }[];
-  status:
-    | "submitted"
-    | "action-needed"
-    | "resubmitted"
-    | "cancelled"
-    | "complete";
-  registrationStatus: "completed" | "pending";
-  action: string;
-  remark: string;
+  status: "success" | "warning" | "error" | "info";
 }
 
-const statusColors = {
-  submitted: {
-    bg: "bg-blue-100 dark:bg-blue-900/20",
-    text: "text-blue-700 dark:text-blue-400",
-    icon: Clock,
-  },
-  "action-needed": {
-    bg: "bg-red-100 dark:bg-red-900/20",
-    text: "text-red-700 dark:text-red-400",
-    icon: AlertCircle,
-  },
-  resubmitted: {
-    bg: "bg-yellow-100 dark:bg-yellow-900/20",
-    text: "text-yellow-700 dark:text-yellow-400",
-    icon: RefreshCw,
-  },
-  cancelled: {
-    bg: "bg-gray-100 dark:bg-gray-900/20",
-    text: "text-gray-700 dark:text-gray-400",
-    icon: XCircle,
-  },
-  complete: {
-    bg: "bg-green-100 dark:bg-green-900/20",
-    text: "text-green-700 dark:text-green-400",
-    icon: CheckCircle,
-  },
-};
+interface Supervisor {
+  id: string;
+  name: string;
+  email: string;
+  department: string;
+  assignedGroups: number;
+  completedGroups: number;
+  pendingGroups: number;
+  avatar: string;
+  performance: number;
+}
 
-const registrationColors = {
-  completed: {
-    bg: "bg-green-100 dark:bg-green-900/20",
-    text: "text-green-700 dark:text-green-400",
-  },
-  pending: {
-    bg: "bg-yellow-100 dark:bg-yellow-900/20",
-    text: "text-yellow-700 dark:text-yellow-400",
-  },
-};
-
-export default function ThesisGroupManagementPage() {
+export default function AdminDashboard() {
   const [selectedSemester, setSelectedSemester] = useState("Spring 2025-26");
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isSemesterDropdownOpen, setIsSemesterDropdownOpen] = useState(false);
-  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
-  const [downloading, setDownloading] = useState(false);
 
-  const semesters = ["Spring 2025-26", "Fall 2025-26", "Summer 2025-26"];
-
-  const filters = [
-    { label: "Submitted", value: "submitted", count: 12 },
-    { label: "Action Needed", value: "action-needed", count: 3 },
-    { label: "Resubmitted", value: "resubmitted", count: 5 },
-    { label: "Cancelled", value: "cancelled", count: 2 },
-    { label: "Complete", value: "complete", count: 8 },
+  // Stats Data
+  const stats = [
+    {
+      title: "Total Students",
+      value: "1,284",
+      change: "+12%",
+      icon: Users,
+      color: "bg-blue-500",
+      bgColor: "bg-blue-100 dark:bg-blue-900/20",
+      textColor: "text-blue-600 dark:text-blue-400",
+    },
+    {
+      title: "Active Supervisors",
+      value: "48",
+      change: "+5%",
+      icon: UserCheck,
+      color: "bg-green-500",
+      bgColor: "bg-green-100 dark:bg-green-900/20",
+      textColor: "text-green-600 dark:text-green-400",
+    },
+    {
+      title: "Thesis Groups",
+      value: "156",
+      change: "+18%",
+      icon: GraduationCap,
+      color: "bg-purple-500",
+      bgColor: "bg-purple-100 dark:bg-purple-900/20",
+      textColor: "text-purple-600 dark:text-purple-400",
+    },
+    {
+      title: "Completed Theses",
+      value: "89",
+      change: "+23%",
+      icon: Award,
+      color: "bg-yellow-500",
+      bgColor: "bg-yellow-100 dark:bg-yellow-900/20",
+      textColor: "text-yellow-600 dark:text-yellow-400",
+    },
   ];
 
-  const thesisGroups: ThesisGroup[] = [
+  // Submission Stats
+  const submissionStats = [
     {
-      id: "01",
-      classId: "Thesis BSCS",
+      label: "Submitted",
+      value: 12,
+      icon: CheckCircle,
+      color: "text-green-600",
+      bgColor: "bg-green-100 dark:bg-green-900/20",
+    },
+    {
+      label: "Action Needed",
+      value: 3,
+      icon: AlertCircle,
+      color: "text-red-600",
+      bgColor: "bg-red-100 dark:bg-red-900/20",
+    },
+    {
+      label: "Resubmitted",
+      value: 5,
+      icon: RefreshCw,
+      color: "text-yellow-600",
+      bgColor: "bg-yellow-100 dark:bg-yellow-900/20",
+    },
+    {
+      label: "Cancelled",
+      value: 2,
+      icon: XCircle,
+      color: "text-gray-600",
+      bgColor: "bg-gray-100 dark:bg-gray-900/20",
+    },
+    {
+      label: "Complete",
+      value: 8,
+      icon: CheckCircle,
+      color: "text-green-600",
+      bgColor: "bg-green-100 dark:bg-green-900/20",
+    },
+  ];
+
+  // Recent Activities
+  const recentActivities: Activity[] = [
+    {
+      id: "1",
+      type: "submission",
+      title: "New Thesis Submission",
+      description: "Group G01 submitted their final thesis book",
+      time: "10 minutes ago",
       groupNo: "G01",
-      supervisorId: "2401-2400-2",
-      supervisorName: "Mr. Supervisor",
-      extId: "24-91332-1",
-      students: [
-        { id: "24-91332-1", name: "Student 1" },
-        { id: "24-91332-2", name: "Student 2" },
-      ],
-      status: "submitted",
-      registrationStatus: "completed",
-      action: "Reject",
-      remark: "Need revision",
+      status: "success",
     },
     {
-      id: "02",
-      classId: "Thesis BSCS",
-      groupNo: "G02",
-      supervisorId: "2401-2400-3",
-      supervisorName: "Dr. Smith",
-      extId: "24-91333-1",
-      students: [
-        { id: "24-91333-1", name: "Student 3" },
-        { id: "24-91333-2", name: "Student 4" },
-        { id: "24-91333-3", name: "Student 5" },
-      ],
-      status: "complete",
-      registrationStatus: "completed",
-      action: "Accept",
-      remark: "Excellent work",
-    },
-    {
-      id: "03",
-      classId: "Thesis BSCS",
+      id: "2",
+      type: "approval",
+      title: "Thesis Approved",
+      description: "Dr. Smith approved thesis for Group G03",
+      time: "1 hour ago",
       groupNo: "G03",
-      supervisorId: "2401-2400-4",
-      supervisorName: "Prof. Johnson",
-      extId: "24-91334-1",
-      students: [
-        { id: "24-91334-1", name: "Student 6" },
-        { id: "24-91334-2", name: "Student 7" },
-      ],
-      status: "action-needed",
-      registrationStatus: "pending",
-      action: "Review",
-      remark: "Missing documents",
+      status: "success",
+    },
+    {
+      id: "3",
+      type: "rejection",
+      title: "Revision Required",
+      description: "Group G05 needs to resubmit plagiarism report",
+      time: "3 hours ago",
+      groupNo: "G05",
+      status: "error",
+    },
+    {
+      id: "4",
+      type: "comment",
+      title: "New Comment",
+      description: "Supervisor added feedback on Group G02",
+      time: "5 hours ago",
+      groupNo: "G02",
+      status: "info",
+    },
+    {
+      id: "5",
+      type: "submission",
+      title: "OBE Marks Uploaded",
+      description: "Group G04 uploaded OBE marksheet",
+      time: "1 day ago",
+      groupNo: "G04",
+      status: "success",
     },
   ];
 
-  const toggleFilter = (filterValue: string) => {
-    setSelectedFilters((prev) =>
-      prev.includes(filterValue)
-        ? prev.filter((f) => f !== filterValue)
-        : [...prev, filterValue],
-    );
+  // Supervisor Performance Data
+  const supervisors: Supervisor[] = [
+    {
+      id: "1",
+      name: "Dr. John Smith",
+      email: "john.smith@university.edu",
+      department: "Computer Science",
+      assignedGroups: 8,
+      completedGroups: 6,
+      pendingGroups: 2,
+      avatar: "JS",
+      performance: 92,
+    },
+    {
+      id: "2",
+      name: "Prof. Sarah Johnson",
+      email: "sarah.johnson@university.edu",
+      department: "Software Engineering",
+      assignedGroups: 6,
+      completedGroups: 5,
+      pendingGroups: 1,
+      avatar: "SJ",
+      performance: 88,
+    },
+    {
+      id: "3",
+      name: "Dr. Michael Lee",
+      email: "michael.lee@university.edu",
+      department: "Data Science",
+      assignedGroups: 10,
+      completedGroups: 7,
+      pendingGroups: 3,
+      avatar: "ML",
+      performance: 85,
+    },
+    {
+      id: "4",
+      name: "Prof. Emily Brown",
+      email: "emily.brown@university.edu",
+      department: "Cybersecurity",
+      assignedGroups: 5,
+      completedGroups: 4,
+      pendingGroups: 1,
+      avatar: "EB",
+      performance: 90,
+    },
+  ];
+
+  const getActivityIcon = (type: Activity["type"]) => {
+    switch (type) {
+      case "submission":
+        return <FileText className="h-4 w-4 text-blue-500" />;
+      case "approval":
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case "rejection":
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      case "comment":
+        return <MessageSquare className="h-4 w-4 text-purple-500" />;
+      default:
+        return <Activity className="h-4 w-4 text-gray-500" />;
+    }
   };
 
-  const filteredGroups = thesisGroups.filter((group) => {
-    // Filter by status
-    if (selectedFilters.length > 0 && !selectedFilters.includes(group.status)) {
-      return false;
+  const getActivityBgColor = (status: Activity["status"]) => {
+    switch (status) {
+      case "success":
+        return "bg-green-50 dark:bg-green-900/10";
+      case "error":
+        return "bg-red-50 dark:bg-red-900/10";
+      case "warning":
+        return "bg-yellow-50 dark:bg-yellow-900/10";
+      default:
+        return "bg-blue-50 dark:bg-blue-900/10";
     }
-
-    // Filter by search term
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      return (
-        group.classId.toLowerCase().includes(searchLower) ||
-        group.groupNo.toLowerCase().includes(searchLower) ||
-        group.supervisorName.toLowerCase().includes(searchLower) ||
-        group.students.some((s) => s.name.toLowerCase().includes(searchLower))
-      );
-    }
-
-    return true;
-  });
-
-  const handleDownload = async () => {
-    setDownloading(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    console.log("Downloading with filters:", selectedFilters);
-    setDownloading(false);
-  };
-
-  const getStatusBadge = (status: ThesisGroup["status"]) => {
-    const StatusIcon = statusColors[status].icon;
-    return (
-      <span
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[status].bg} ${statusColors[status].text}`}
-      >
-        <StatusIcon className="h-3 w-3" />
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
-    );
   };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#050505]">
       <div className="mx-auto max-w-7xl px-4 py-8">
-        {/* Select Semester Section */}
+        {/* Header */}
         <div className="mb-8">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Select Semester
-          </label>
-          <div className="relative">
-            <button
-              onClick={() => setIsSemesterDropdownOpen(!isSemesterDropdownOpen)}
-              className="w-full md:w-64 flex items-center justify-between rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-black dark:text-white hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
-            >
-              <span>{selectedSemester}</span>
-              <ChevronDown
-                className={`h-4 w-4 transition-transform ${isSemesterDropdownOpen ? "rotate-180" : ""}`}
-              />
-            </button>
+          <h1 className="text-3xl font-bold text-black dark:text-white mb-2">
+            Admin Dashboard
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Overview of thesis management system
+          </p>
+        </div>
 
-            <AnimatePresence>
-              {isSemesterDropdownOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="absolute top-full left-0 mt-2 w-full md:w-64 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0a0a0a] shadow-lg z-20"
-                >
-                  {semesters.map((semester) => (
-                    <button
-                      key={semester}
-                      onClick={() => {
-                        setSelectedSemester(semester);
-                        setIsSemesterDropdownOpen(false);
-                      }}
-                      className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors first:rounded-t-lg last:rounded-b-lg"
+        {/* Semester Selector */}
+        <div className="mb-8">
+          <SemesterSelector
+            selectedSemester={selectedSemester}
+            onSemesterChange={setSelectedSemester}
+          />
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {stats.map((stat, index) => {
+            const Icon = stat.icon;
+            return (
+              <motion.div
+                key={stat.title}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] p-6 hover:shadow-lg transition-shadow"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`rounded-lg ${stat.bgColor} p-3`}>
+                    <Icon className={`h-6 w-6 ${stat.textColor}`} />
+                  </div>
+                  <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                    {stat.change}
+                  </span>
+                </div>
+                <h3 className="text-2xl font-bold text-black dark:text-white mb-1">
+                  {stat.value}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {stat.title}
+                </p>
+              </motion.div>
+            );
+          })}
+        </div>
+
+        {/* Two Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Submission Status - Left Column */}
+          <div className="lg:col-span-1">
+            <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-black dark:text-white">
+                  Submission Status
+                </h2>
+                <BarChart3 className="h-5 w-5 text-gray-400" />
+              </div>
+              <div className="space-y-4">
+                {submissionStats.map((stat) => {
+                  const Icon = stat.icon;
+                  return (
+                    <div
+                      key={stat.label}
+                      className="flex items-center justify-between"
                     >
-                      {semester}
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
+                      <div className="flex items-center gap-3">
+                        <div className={`rounded-lg ${stat.bgColor} p-2`}>
+                          <Icon className={`h-4 w-4 ${stat.color}`} />
+                        </div>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                          {stat.label}
+                        </span>
+                      </div>
+                      <span className="text-lg font-semibold text-black dark:text-white">
+                        {stat.value}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Progress Bar */}
+              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-white/10">
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Overall Progress
+                  </span>
+                  <span className="font-semibold text-black dark:text-white">
+                    68%
+                  </span>
+                </div>
+                <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-green-500 rounded-full"
+                    style={{ width: "68%" }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Activities - Right Column */}
+          <div className="lg:col-span-2">
+            <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-black dark:text-white">
+                  Recent Activities
+                </h2>
+                <button className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+                  View All
+                </button>
+              </div>
+              <div className="space-y-4">
+                {recentActivities.map((activity) => (
+                  <div
+                    key={activity.id}
+                    className={`flex items-start gap-3 p-3 rounded-lg ${getActivityBgColor(activity.status)}`}
+                  >
+                    <div className="mt-0.5">
+                      {getActivityIcon(activity.type)}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className="text-sm font-semibold text-black dark:text-white">
+                          {activity.title}
+                        </h3>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {activity.time}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                        {activity.description}
+                      </p>
+                      <span className="text-xs text-blue-600 dark:text-blue-400">
+                        Group {activity.groupNo}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Filter Section */}
-        <div className="mb-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-            <div>
-              <h2 className="text-lg font-semibold text-black dark:text-white mb-1">
-                Download Thesis Group File using the following filters
-              </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Select status filters to download specific groups
-              </p>
-            </div>
-
-            <div className="flex gap-3">
-              <div className="relative">
-                <button
-                  onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
-                  className="flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-                >
-                  <Filter className="h-4 w-4" />
-                  <span>Filters</span>
-                  {selectedFilters.length > 0 && (
-                    <span className="ml-1 rounded-full bg-black dark:bg-white px-2 py-0.5 text-xs text-white dark:text-black">
-                      {selectedFilters.length}
-                    </span>
-                  )}
-                  <ChevronDown
-                    className={`h-4 w-4 transition-transform ${isFilterDropdownOpen ? "rotate-180" : ""}`}
-                  />
-                </button>
-
-                <AnimatePresence>
-                  {isFilterDropdownOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0a0a0a] shadow-lg z-20"
-                    >
-                      <div className="p-2">
-                        {filters.map((filter) => (
-                          <label
-                            key={filter.value}
-                            className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
-                          >
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={selectedFilters.includes(filter.value)}
-                                onChange={() => toggleFilter(filter.value)}
-                                className="rounded border-gray-300 dark:border-gray-600"
-                              />
-                              <span className="text-sm text-gray-700 dark:text-gray-300">
-                                {filter.label}
-                              </span>
-                            </div>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                              ({filter.count})
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+        {/* Supervisor Performance Table */}
+        <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] overflow-hidden">
+          <div className="p-6 border-b border-gray-200 dark:border-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-black dark:text-white">
+                  Supervisor Performance
+                </h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  Overview of supervisor activities and completion rates
+                </p>
               </div>
-
-              <button
-                onClick={handleDownload}
-                disabled={downloading}
-                className="flex items-center gap-2 rounded-lg bg-black dark:bg-white px-6 py-2 text-white dark:text-black font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors disabled:opacity-50"
-              >
+              <button className="flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                 <Download className="h-4 w-4" />
-                {downloading ? "Downloading..." : "Download"}
+                Export
               </button>
             </div>
           </div>
 
-          {/* Active Filters */}
-          {selectedFilters.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-4">
-              {selectedFilters.map((filter) => {
-                const filterLabel = filters.find(
-                  (f) => f.value === filter,
-                )?.label;
-                return (
-                  <span
-                    key={filter}
-                    className="inline-flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-800 px-3 py-1 text-xs text-gray-700 dark:text-gray-300"
-                  >
-                    {filterLabel}
-                    <button
-                      onClick={() => toggleFilter(filter)}
-                      className="ml-1 hover:text-red-600 dark:hover:text-red-400"
-                    >
-                      ×
-                    </button>
-                  </span>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Search Bar */}
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by class ID, group no, supervisor, or student name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0a0a0a] pl-10 pr-4 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
-            />
-          </div>
-        </div>
-
-        {/* Thesis Groups Table */}
-        <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-[#050505] border-b border-gray-200 dark:border-white/10">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white">
-                    ID
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white">
+                    Supervisor
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white">
-                    Class ID
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white">
+                    Department
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white">
-                    Group No
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-900 dark:text-white">
+                    Assigned Groups
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white">
-                    Supervisor Id
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white">
-                    Supervisor Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white">
-                    Ext Id
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white">
-                    Students ID
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white">
-                    Students Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white">
-                    Thesis Mgmt Team Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white">
-                    Supervisor Registration
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white">
-                    Action
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white">
-                    Remark
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white">
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-900 dark:text-white">
                     Completed
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-900 dark:text-white">
+                    Pending
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-900 dark:text-white">
+                    Performance
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-900 dark:text-white">
+                    Action
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-white/10">
-                {filteredGroups.map((group) => (
-                  <motion.tr
-                    key={group.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
+                {supervisors.map((supervisor) => (
+                  <tr
+                    key={supervisor.id}
                     className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
                   >
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                      {group.id}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                      {group.classId}
-                    </td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
-                      {group.groupNo}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                      {group.supervisorId}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                      {group.supervisorName}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                      {group.extId}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                      <div className="space-y-1">
-                        {group.students.map((student, idx) => (
-                          <div key={idx}>{student.id}</div>
-                        ))}
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold">
+                          {supervisor.avatar}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {supervisor.name}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {supervisor.email}
+                          </p>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                      <div className="space-y-1">
-                        {group.students.map((student, idx) => (
-                          <div key={idx}>{student.name}</div>
-                        ))}
-                      </div>
+                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                      {supervisor.department}
                     </td>
-                    <td className="px-4 py-3">
-                      {getStatusBadge(group.status)}
+                    <td className="px-6 py-4 text-center text-sm font-medium text-gray-900 dark:text-white">
+                      {supervisor.assignedGroups}
                     </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${registrationColors[group.registrationStatus].bg} ${registrationColors[group.registrationStatus].text}`}
-                      >
-                        {group.registrationStatus === "completed"
-                          ? "Completed"
-                          : "Pending"}
+                    <td className="px-6 py-4 text-center">
+                      <span className="inline-flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+                        <CheckCircle className="h-3 w-3" />
+                        {supervisor.completedGroups}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <button className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm">
-                        {group.action}
-                      </button>
+                    <td className="px-6 py-4 text-center">
+                      <span className="inline-flex items-center gap-1 text-sm text-yellow-600 dark:text-yellow-400">
+                        <Clock className="h-3 w-3" />
+                        {supervisor.pendingGroups}
+                      </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                      {group.remark}
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="h-2 w-16 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-green-500 rounded-full"
+                            style={{ width: `${supervisor.performance}%` }}
+                          />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                          {supervisor.performance}%
+                        </span>
+                      </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <button className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300">
+                    <td className="px-6 py-4 text-center">
+                      <button className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">
                         <Eye className="h-4 w-4" />
                       </button>
                     </td>
-                  </motion.tr>
+                  </tr>
                 ))}
               </tbody>
             </table>
           </div>
-
-          {filteredGroups.length === 0 && (
-            <div className="text-center py-12">
-              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-500 dark:text-gray-400">
-                No thesis groups found
-              </p>
-              <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-                Try adjusting your filters or search term
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Summary Stats */}
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-4">
-          {filters.map((filter) => (
-            <div
-              key={filter.value}
-              className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] p-4"
-            >
-              <div className="text-2xl font-bold text-black dark:text-white">
-                {filter.count}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                {filter.label}
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </div>

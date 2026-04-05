@@ -3,10 +3,10 @@
 import { SidebarNav } from "@/components/sidebar-nav";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { Menu, X } from "lucide-react";
+import { ChevronRight, Home, Menu, X } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function ClientLayoutWrapper({
   children,
@@ -14,7 +14,17 @@ export default function ClientLayoutWrapper({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Handle redirects for /admin and /supervisor
+  useEffect(() => {
+    if (pathname === "/admin") {
+      router.push("/admin/dashboard");
+    } else if (pathname === "/supervisor") {
+      router.push("/supervisor/dashboard");
+    }
+  }, [pathname, router]);
 
   const isPublicShellRoute =
     pathname === "/" ||
@@ -71,6 +81,72 @@ export default function ClientLayoutWrapper({
       </div>
     );
   }
+
+  // Generate breadcrumbs from pathname
+  const generateBreadcrumbs = () => {
+    const paths = pathname.split("/").filter((path) => path);
+    const breadcrumbs = [];
+
+    // Add Home breadcrumb
+    breadcrumbs.push({
+      label: "Dashboard",
+      href: "/dashboard",
+      isLast: paths.length === 0,
+    });
+
+    // Build breadcrumb path
+    let currentPath = "";
+    for (let i = 0; i < paths.length; i++) {
+      currentPath += `/${paths[i]}`;
+      const label = formatBreadcrumbLabel(paths[i], currentPath);
+
+      breadcrumbs.push({
+        label,
+        href: currentPath,
+        isLast: i === paths.length - 1,
+      });
+    }
+
+    return breadcrumbs;
+  };
+
+  const formatBreadcrumbLabel = (path: string, fullPath: string): string => {
+    // Custom labels for specific paths
+    const customLabels: Record<string, string> = {
+      dashboard: "Dashboard",
+      supervisor: "Supervisor",
+      admin: "Admin",
+      semester: "Semester Management",
+      "thesis-groups": "Thesis Groups",
+      documents: "Documents",
+      "obe-marks": "OBE Marks",
+      "upload-evidence": "Upload Evidence",
+      students: "Students",
+      courses: "Courses",
+      reports: "Reports",
+      messages: "Messages",
+      settings: "Settings",
+      help: "Help Center",
+    };
+
+    // Check if we have a custom label for the full path
+    if (customLabels[fullPath.substring(1)]) {
+      return customLabels[fullPath.substring(1)];
+    }
+
+    // Check if we have a custom label for just the path segment
+    if (customLabels[path]) {
+      return customLabels[path];
+    }
+
+    // Format the path segment: convert kebab-case to Title Case
+    return path
+      .split("-")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
+
+  const breadcrumbs = generateBreadcrumbs();
 
   // Authenticated routes with sidebar
   return (
@@ -140,13 +216,38 @@ export default function ClientLayoutWrapper({
             className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-gray-200 bg-white dark:border-white/10 dark:bg-[#050505]"
             style={{ paddingLeft: "1rem", paddingRight: "2rem" }}
           >
-            <h1 className="text-lg font-medium text-black dark:text-white">
-              {getPageTitle(pathname)}
-            </h1>
+            {/* Breadcrumbs */}
+            <div className="flex items-center gap-2">
+              <nav className="flex items-center gap-1 text-sm">
+                {breadcrumbs.map((crumb, index) => (
+                  <div key={crumb.href} className="flex items-center gap-1">
+                    {index === 0 && (
+                      <Home className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
+                    )}
+                    {crumb.isLast ? (
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {crumb.label}
+                      </span>
+                    ) : (
+                      <>
+                        <Link
+                          href={crumb.href}
+                          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                        >
+                          {crumb.label}
+                        </Link>
+                        <ChevronRight className="h-3.5 w-3.5 text-gray-400 dark:text-gray-600" />
+                      </>
+                    )}
+                  </div>
+                ))}
+              </nav>
+            </div>
+
             <div className="flex items-center gap-3">
               <ThemeToggle />
-              <button className="flex h-8 items-center justify-center rounded-full border border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/5 px-6">
-                <span className="text-sm font-medium text-black dark:text-white px-4">
+              <button className="flex h-8 items-center justify-center rounded-full border border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/5 px-4">
+                <span className="text-sm font-medium text-black dark:text-white">
                   Md Hamid Uddin
                 </span>
               </button>
@@ -160,20 +261,4 @@ export default function ClientLayoutWrapper({
       </div>
     </SidebarProvider>
   );
-}
-
-function getPageTitle(pathname: string): string {
-  if (pathname === "/") return "Home";
-  const path = pathname.split("/")[1];
-  const titles: Record<string, string> = {
-    dashboard: "Dashboard",
-    students: "Students",
-    courses: "Courses",
-    obe: "OBE Framework",
-    reports: "Reports",
-    messages: "Messages",
-    settings: "Settings",
-    help: "Help Center",
-  };
-  return titles[path] || "Dashboard";
 }
