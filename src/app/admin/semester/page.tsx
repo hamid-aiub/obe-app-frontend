@@ -1,6 +1,14 @@
 "use client";
 
+import {
+  createSemester,
+  deleteSemesterById,
+  getSemesters,
+  Semester,
+  updateSemesterById,
+} from "@/resources/semester/service";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertCircle,
@@ -16,56 +24,44 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-const semesterSchema = z.object({
-  semesterName: z.string().min(1, "Semester name is required"),
-  groupCreationStart: z.string().min(1, "Start date is required"),
-  groupCreationEnd: z.string().min(1, "End date is required"),
-  midEvidenceStart: z.string().min(1, "Start date is required"),
-  midEvidenceEnd: z.string().min(1, "End date is required"),
-  finalEvidenceStart: z.string().min(1, "Start date is required"),
-  finalEvidenceEnd: z.string().min(1, "End date is required"),
-});
+const semesterSchema = z
+  .object({
+    semesterName: z.string().min(1, "Semester name is required"),
+    groupCreationStart: z.string().min(1, "Start date is required"),
+    groupCreationEnd: z.string().min(1, "End date is required"),
+    midEvidenceStart: z.string().min(1, "Start date is required"),
+    midEvidenceEnd: z.string().min(1, "End date is required"),
+    finalEvidenceStart: z.string().min(1, "Start date is required"),
+    finalEvidenceEnd: z.string().min(1, "End date is required"),
+  })
+  .refine((data) => data.groupCreationStart <= data.groupCreationEnd, {
+    message: "Group creation end date must be on or after the start date",
+    path: ["groupCreationEnd"],
+  })
+  .refine((data) => data.midEvidenceStart <= data.midEvidenceEnd, {
+    message: "Mid evidence end date must be on or after the start date",
+    path: ["midEvidenceEnd"],
+  })
+  .refine((data) => data.finalEvidenceStart <= data.finalEvidenceEnd, {
+    message: "Final evidence end date must be on or after the start date",
+    path: ["finalEvidenceEnd"],
+  });
 
 type SemesterData = z.infer<typeof semesterSchema>;
 
-interface Semester extends SemesterData {
-  id: string;
-}
-
 export default function CreateSemesterPage() {
-  const [semesters, setSemesters] = useState<Semester[]>([
-    {
-      id: "1",
-      semesterName: "Spring 2025-26",
-      groupCreationStart: "2026-03-03",
-      groupCreationEnd: "2026-03-22",
-      midEvidenceStart: "2026-03-03",
-      midEvidenceEnd: "2026-04-22",
-      finalEvidenceStart: "2026-03-03",
-      finalEvidenceEnd: "2026-06-22",
-    },
-    {
-      id: "2",
-      semesterName: "Summer 2025-26",
-      groupCreationStart: "2026-06-03",
-      groupCreationEnd: "2026-06-22",
-      midEvidenceStart: "2026-06-03",
-      midEvidenceEnd: "2026-07-22",
-      finalEvidenceStart: "2026-06-03",
-      finalEvidenceEnd: "2026-09-22",
-    },
-  ]);
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [semesterToDelete, setSemesterToDelete] = useState<Semester | null>(
     null,
   );
   const [editingSemester, setEditingSemester] = useState<Semester | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState<
+    "created" | "updated" | null
+  >(null);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const {
     register,
@@ -85,30 +81,80 @@ export default function CreateSemesterPage() {
     },
   });
 
-  const onSubmit = async (data: SemesterData) => {
-    setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+  const semestersQuery = useQuery({
+    queryKey: ["semesters"],
+    queryFn: getSemesters,
+  });
 
-    if (editingSemester) {
-      // Update existing semester
-      setSemesters(
-        semesters.map((s) =>
-          s.id === editingSemester.id ? { ...data, id: s.id } : s,
-        ),
+  const createSemesterMutation = useMutation({
+    mutationFn: createSemester,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["semesters"] });
+    },
+  });
+
+  const updateSemesterMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: SemesterData }) =>
+      updateSemesterById(id, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["semesters"] });
+    },
+  });
+
+  const deleteSemesterMutation = useMutation({
+    mutationFn: deleteSemesterById,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["semesters"] });
+    },
+  });
+
+  const semesters = semestersQuery.data ?? [];
+  const isLoadingSemesters = semestersQuery.isLoading;
+  const isRefreshing = semestersQuery.isRefetching;
+  const isSubmitting =
+    createSemesterMutation.isPending || updateSemesterMutation.isPending;
+  const isDeleting = deleteSemesterMutation.isPending;
+  const queryErrorMessage =
+    semestersQuery.error instanceof Error ? semestersQuery.error.message : null;
+  const displayError = pageError ?? queryErrorMessage;
+
+  const refreshSemesters = async () => {
+    setPageError(null);
+
+    const result = await semestersQuery.refetch();
+    if (result.error) {
+      setPageError(
+        result.error instanceof Error
+          ? result.error.message
+          : "Failed to refresh semesters. Please try again.",
       );
-    } else {
-      // Add new semester
-      const newSemester: Semester = {
-        ...data,
-        id: Date.now().toString(),
-      };
-      setSemesters([...semesters, newSemester]);
     }
+  };
 
-    setIsSubmitting(false);
-    setSubmitSuccess(true);
-    setTimeout(() => setSubmitSuccess(false), 3000);
-    handleCloseModal();
+  const onSubmit = async (data: SemesterData) => {
+    setPageError(null);
+
+    try {
+      if (editingSemester) {
+        await updateSemesterMutation.mutateAsync({
+          id: editingSemester.id,
+          payload: data,
+        });
+        setSubmitSuccess("updated");
+      } else {
+        await createSemesterMutation.mutateAsync(data);
+        setSubmitSuccess("created");
+      }
+
+      setTimeout(() => setSubmitSuccess(null), 3000);
+      handleCloseModal();
+    } catch (error) {
+      setPageError(
+        error instanceof Error
+          ? error.message
+          : "Failed to save semester. Please try again.",
+      );
+    }
   };
 
   const handleEdit = (semester: Semester) => {
@@ -125,16 +171,21 @@ export default function CreateSemesterPage() {
   const handleConfirmDelete = async () => {
     if (!semesterToDelete) return;
 
-    setIsDeleting(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    setPageError(null);
 
-    setSemesters(semesters.filter((s) => s.id !== semesterToDelete.id));
-    setIsDeleting(false);
-    setIsDeleteModalOpen(false);
-    setSemesterToDelete(null);
-
-    setDeleteSuccess(true);
-    setTimeout(() => setDeleteSuccess(false), 3000);
+    try {
+      await deleteSemesterMutation.mutateAsync(semesterToDelete.id);
+      setIsDeleteModalOpen(false);
+      setSemesterToDelete(null);
+      setDeleteSuccess(true);
+      setTimeout(() => setDeleteSuccess(false), 3000);
+    } catch (error) {
+      setPageError(
+        error instanceof Error
+          ? error.message
+          : "Failed to delete semester. Please try again.",
+      );
+    }
   };
 
   const handleCancelDelete = () => {
@@ -164,6 +215,11 @@ export default function CreateSemesterPage() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
+
+    if (Number.isNaN(date.getTime())) {
+      return dateString;
+    }
+
     return date.toLocaleDateString("en-US", {
       month: "long",
       day: "numeric",
@@ -205,8 +261,7 @@ export default function CreateSemesterPage() {
               <div className="flex items-center gap-3">
                 <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
                 <p className="text-green-700 dark:text-green-300">
-                  Semester {editingSemester ? "updated" : "created"}{" "}
-                  successfully!
+                  Semester {submitSuccess} successfully!
                 </p>
               </div>
             </motion.div>
@@ -228,6 +283,28 @@ export default function CreateSemesterPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {displayError && (
+          <div className="mb-6 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                <p className="text-red-700 dark:text-red-300">{displayError}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPageError(null);
+                  void refreshSemesters();
+                }}
+                disabled={isRefreshing}
+                className="rounded-md border border-red-300 dark:border-red-700 px-3 py-1 text-sm font-medium text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 disabled:opacity-50"
+              >
+                {isRefreshing ? "Retrying..." : "Retry"}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Semesters Table */}
         <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] overflow-hidden">
@@ -253,6 +330,16 @@ export default function CreateSemesterPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-white/10">
+                {isLoadingSemesters && (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
+                    >
+                      Loading semesters...
+                    </td>
+                  </tr>
+                )}
                 {semesters.map((semester) => (
                   <motion.tr
                     key={semester.id}
@@ -313,7 +400,7 @@ export default function CreateSemesterPage() {
             </table>
           </div>
 
-          {semesters.length === 0 && (
+          {!isLoadingSemesters && semesters.length === 0 && (
             <div className="text-center py-12">
               <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
               <p className="text-gray-500 dark:text-gray-400">

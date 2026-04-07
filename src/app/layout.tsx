@@ -1,5 +1,6 @@
 import ClientLayoutWrapper from "@/components/ClientLayoutWrapper"; // Change this import
 import { cn } from "@/lib/utils";
+import ReactQueryProvider from "@/providers/ReactQueryProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
@@ -38,9 +39,11 @@ export default function RootLayout({
       suppressHydrationWarning={true}
     >
       <body className={GeistSans.className}>
-        <ThemeProvider>
-          <ClientLayoutWrapper>{children}</ClientLayoutWrapper>
-        </ThemeProvider>
+        <ReactQueryProvider>
+          <ThemeProvider>
+            <ClientLayoutWrapper>{children}</ClientLayoutWrapper>
+          </ThemeProvider>
+        </ReactQueryProvider>
       </body>
     </html>
   );
