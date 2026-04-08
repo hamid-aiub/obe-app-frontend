@@ -126,7 +126,7 @@ const toUiGroup = (group: SupervisorGroupResponse): ThesisGroup => ({
   semesterId: group.semesterId,
   name: group.proposedTitle,
   domain: group.thesisDomain,
-  groupNo: `${group.supervisorGroup ?? "-"} | Global ${group.globalGroupSerial ?? "-"}`,
+  groupNo: `${group.supervisorGroup ?? "-"} | Thesis [BSCS][G${group.globalGroupSerial ?? "-"}]`,
   status: deriveStatus(group),
 });
 

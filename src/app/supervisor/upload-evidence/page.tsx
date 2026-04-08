@@ -10,7 +10,7 @@ import {
   uploadGroupEvidenceApi,
 } from "@/resources/thesis-group/api";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -59,7 +59,7 @@ const DOCUMENT_FIELDS: Array<{ field: UploadField; label: string }> = [
   { field: "poster", label: "Poster" },
 ];
 
-export default function UploadEvidencePage() {
+function UploadEvidenceContent() {
   const searchParams = useSearchParams();
   const groupId = searchParams.get("groupId") ?? "";
   const semesterId = searchParams.get("semesterId") ?? undefined;
@@ -172,8 +172,6 @@ export default function UploadEvidencePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#050505]">
-      {/* Header */}
-
       <div className="mx-auto max-w-7xl px-4 py-8">
         {/* Page Title */}
         <div className="mb-8">
@@ -606,5 +604,19 @@ export default function UploadEvidencePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function UploadEvidencePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 dark:bg-[#050505] flex items-center justify-center">
+          <div className="text-gray-600 dark:text-gray-400">Loading...</div>
+        </div>
+      }
+    >
+      <UploadEvidenceContent />
+    </Suspense>
   );
 }
