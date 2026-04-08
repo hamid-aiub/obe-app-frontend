@@ -20,8 +20,17 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 export default function SupervisorDashboard() {
-  const { groups, selectedSemester, handleViewDetails, handleSemesterChange } =
-    useThesisGroups();
+  const {
+    groups,
+    semesters,
+    selectedSemesterData,
+    selectedSemesterLabel,
+    selectedSemester,
+    isLoading,
+    error,
+    handleViewDetails,
+    handleSemesterChange,
+  } = useThesisGroups();
   const router = useRouter();
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestMessage, setRequestMessage] = useState("");
@@ -34,30 +43,63 @@ export default function SupervisorDashboard() {
   const currentGroupCount = groups.length;
   const needsApproval = currentGroupCount >= MAX_GROUPS_WITHOUT_APPROVAL;
 
-  // Active deadlines data
-  const activeDeadlines = [
-    {
-      title: "Group Creation",
-      startDate: "Jan 10, 2026",
-      endDate: "Feb 20, 2026",
-      status: "active",
-      icon: Users,
-    },
-    {
-      title: "Mid Evidence",
-      startDate: "Mar 10, 2026",
-      endDate: "Mar 25, 2026",
-      status: "upcoming",
-      icon: FileText,
-    },
-    {
-      title: "Final Evidence",
-      startDate: "May 1, 2026",
-      endDate: "May 30, 2026",
-      status: "upcoming",
-      icon: Calendar,
-    },
-  ];
+  const formatDate = (value: string) =>
+    new Date(`${value}T00:00:00`).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+
+  const getDeadlineStatus = (startDate: string, endDate: string) => {
+    const today = new Date();
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T23:59:59`);
+
+    if (today < start) {
+      return "upcoming";
+    }
+
+    if (today > end) {
+      return "completed";
+    }
+
+    return "active";
+  };
+
+  const activeDeadlines = selectedSemesterData
+    ? [
+        {
+          title: "Group Creation",
+          startDate: formatDate(selectedSemesterData.groupCreationStart),
+          endDate: formatDate(selectedSemesterData.groupCreationEnd),
+          status: getDeadlineStatus(
+            selectedSemesterData.groupCreationStart,
+            selectedSemesterData.groupCreationEnd,
+          ),
+          icon: Users,
+        },
+        {
+          title: "Mid Evidence",
+          startDate: formatDate(selectedSemesterData.midEvidenceStart),
+          endDate: formatDate(selectedSemesterData.midEvidenceEnd),
+          status: getDeadlineStatus(
+            selectedSemesterData.midEvidenceStart,
+            selectedSemesterData.midEvidenceEnd,
+          ),
+          icon: FileText,
+        },
+        {
+          title: "Final Evidence",
+          startDate: formatDate(selectedSemesterData.finalEvidenceStart),
+          endDate: formatDate(selectedSemesterData.finalEvidenceEnd),
+          status: getDeadlineStatus(
+            selectedSemesterData.finalEvidenceStart,
+            selectedSemesterData.finalEvidenceEnd,
+          ),
+          icon: Calendar,
+        },
+      ]
+    : [];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -65,6 +107,8 @@ export default function SupervisorDashboard() {
         return "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800";
       case "upcoming":
         return "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800";
+      case "completed":
+        return "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800";
       default:
         return "bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-400";
     }
@@ -165,7 +209,7 @@ export default function SupervisorDashboard() {
           <div className="flex items-center gap-2 mb-3">
             <Clock className="h-5 w-5 text-gray-600 dark:text-gray-400" />
             <h2 className="text-lg font-semibold text-black dark:text-white">
-              Active Deadlines
+              Active Deadlines ({selectedSemesterLabel})
             </h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -190,6 +234,16 @@ export default function SupervisorDashboard() {
                         Active
                       </span>
                     )}
+                    {deadline.status === "upcoming" && (
+                      <span className="ml-auto text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400">
+                        Upcoming
+                      </span>
+                    )}
+                    {deadline.status === "completed" && (
+                      <span className="ml-auto text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+                        Completed
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     {deadline.startDate} - {deadline.endDate}
@@ -197,6 +251,13 @@ export default function SupervisorDashboard() {
                 </div>
               );
             })}
+            {activeDeadlines.length === 0 && (
+              <div className="col-span-full rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  No semester deadlines are available.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -281,6 +342,7 @@ export default function SupervisorDashboard() {
         {/* Semester Selector - Right aligned */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4 mb-6">
           <SemesterSelector
+            semesters={semesters}
             selectedSemester={selectedSemester}
             onSemesterChange={handleSemesterChange}
           />
@@ -290,7 +352,17 @@ export default function SupervisorDashboard() {
         {/* <DeadlinesAlert /> */}
 
         {/* Thesis Groups Grid or Empty State */}
-        {groups.length > 0 ? (
+        {isLoading ? (
+          <div className="mb-8 flex flex-col items-center justify-center rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] py-12 px-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Loading thesis groups...
+            </p>
+          </div>
+        ) : error ? (
+          <div className="mb-8 flex flex-col items-center justify-center rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-900/20 py-12 px-4">
+            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+          </div>
+        ) : groups.length > 0 ? (
           <div className="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {groups.map((group) => (
               <ThesisGroupCard
@@ -309,9 +381,9 @@ export default function SupervisorDashboard() {
               No Thesis Groups Found
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 text-center max-w-md mb-6">
-              You haven't been assigned any thesis groups for {selectedSemester}
-              . Groups will appear here once assigned by the admin or you can
-              create a new group.
+              You haven't been assigned any thesis groups for{" "}
+              {selectedSemesterLabel}. Groups will appear here once assigned by
+              the admin or you can create a new group.
             </p>
             <button
               onClick={handleAddGroup}

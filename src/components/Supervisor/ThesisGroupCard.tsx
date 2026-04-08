@@ -77,7 +77,13 @@ export function ThesisGroupCard({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push("/supervisor/upload-evidence")}
+            onClick={() => {
+              const params = new URLSearchParams({ groupId: group.id });
+              if (group.semesterId) {
+                params.set("semesterId", group.semesterId);
+              }
+              router.push(`/supervisor/upload-evidence?${params.toString()}`);
+            }}
             className="h-7 gap-1.5 px-2 text-xs text-gray-600 transition-all duration-200 hover:gap-2 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
           >
             <Upload className="h-3 w-3" />

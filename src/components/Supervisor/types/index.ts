@@ -8,6 +8,7 @@ export type ThesisStatus =
 
 export interface ThesisGroup {
   id: string;
+  semesterId?: string;
   name: string;
   domain: string;
   groupNo: string;

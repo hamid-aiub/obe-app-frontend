@@ -3,7 +3,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle, Upload, Users } from "lucide-react";
-import { Suspense, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createSupervisorGroupApi } from "@/resources/thesis-group/api";
+import { getSemestersApi } from "@/resources/semester/api";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Suspense, useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -28,6 +32,7 @@ const studentSchema = z.object({
 });
 
 const thesisFormSchema = z.object({
+  semesterId: z.string().min(1, "Semester is required"),
   supervisorId: z.string().min(1, "Supervisor ID is required"),
   supervisorName: z.string().min(1, "Supervisor name is required"),
   supervisorEmail: z.string().email("Invalid supervisor email"),
@@ -80,9 +85,27 @@ const createEmptyStudent = (): StudentFormData => ({
 });
 
 function ThesisCreationForm() {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [selectedStudentCount, setSelectedStudentCount] = useState(2);
+  const [literatureReviewFile, setLiteratureReviewFile] = useState<File | null>(
+    null,
+  );
+  const [projectProposalFile, setProjectProposalFile] = useState<File | null>(
+    null,
+  );
+
+  const semestersQuery = useQuery({
+    queryKey: ["semesters"],
+    queryFn: getSemestersApi,
+  });
+
+  const createGroupMutation = useMutation({
+    mutationFn: createSupervisorGroupApi,
+  });
+
+  const isSubmitting = createGroupMutation.isPending;
 
   const {
     register,
@@ -95,11 +118,18 @@ function ThesisCreationForm() {
   } = useForm<ThesisFormInput, unknown, ThesisFormData>({
     resolver: zodResolver(thesisFormSchema),
     defaultValues: {
+      semesterId: "",
       numberOfStudents: 2,
       students: [createEmptyStudent(), createEmptyStudent()],
       acceptTerms: false,
     },
   });
+
+  useEffect(() => {
+    if (!getValues("semesterId") && semestersQuery.data?.length) {
+      setValue("semesterId", semestersQuery.data[0].id);
+    }
+  }, [getValues, semestersQuery.data, setValue]);
 
   const { fields, replace } = useFieldArray({
     control,
@@ -140,13 +170,36 @@ function ThesisCreationForm() {
   };
 
   const onSubmit = async (data: ThesisFormData) => {
-    setIsSubmitting(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    console.log("Form Data:", data);
-    setIsSubmitting(false);
-    setSubmitSuccess(true);
-    setTimeout(() => setSubmitSuccess(false), 5000);
+    setSubmitError(null);
+
+    try {
+      const payload = {
+        ...data,
+        students: data.students.map((student) => ({
+          ...student,
+          secondaryEmail: student.secondaryEmail?.trim() || undefined,
+        })),
+      };
+
+      await createGroupMutation.mutateAsync({
+        payload,
+        literatureReviewFile: literatureReviewFile ?? undefined,
+        projectProposalFile: projectProposalFile ?? undefined,
+      });
+
+      setSubmitSuccess(true);
+
+      setTimeout(() => {
+        setSubmitSuccess(false);
+        router.push("/supervisor/groups");
+      }, 1200);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Failed to create thesis group. Please try again.",
+      );
+    }
   };
 
   return (
@@ -180,6 +233,12 @@ function ThesisCreationForm() {
           )}
         </AnimatePresence>
 
+        {submitError && (
+          <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4">
+            <p className="text-red-700 dark:text-red-300">{submitError}</p>
+          </div>
+        )}
+
         {/* Supervisor and Thesis Information - Side by Side on Large Screens */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Supervisor Information */}
@@ -188,6 +247,33 @@ function ThesisCreationForm() {
               Supervisor Information
             </h2>
             <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Semester *
+                </label>
+                <select
+                  {...register("semesterId")}
+                  disabled={semestersQuery.isLoading}
+                  className="w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white disabled:opacity-60"
+                >
+                  <option value="">
+                    {semestersQuery.isLoading
+                      ? "Loading semesters..."
+                      : "Select semester"}
+                  </option>
+                  {(semestersQuery.data ?? []).map((semester) => (
+                    <option key={semester.id} value={semester.id}>
+                      {semester.semesterName}
+                    </option>
+                  ))}
+                </select>
+                {errors.semesterId && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    {errors.semesterId.message}
+                  </p>
+                )}
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Supervisor ID *
@@ -332,10 +418,19 @@ function ThesisCreationForm() {
                     <label className="flex cursor-pointer items-center gap-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                       <Upload className="h-4 w-4 text-gray-600 dark:text-gray-400" />
                       <span>Browse...</span>
-                      <input type="file" accept=".pdf" className="hidden" />
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        className="hidden"
+                        onChange={(event) =>
+                          setLiteratureReviewFile(
+                            event.target.files?.[0] ?? null,
+                          )
+                        }
+                      />
                     </label>
                     <span className="text-sm text-gray-500 dark:text-gray-400">
-                      No file chosen
+                      {literatureReviewFile?.name ?? "No file chosen"}
                     </span>
                   </div>
                 </div>
@@ -348,10 +443,19 @@ function ThesisCreationForm() {
                     <label className="flex cursor-pointer items-center gap-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0a0a0a] px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                       <Upload className="h-4 w-4 text-gray-600 dark:text-gray-400" />
                       <span>Browse...</span>
-                      <input type="file" accept=".pdf" className="hidden" />
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        className="hidden"
+                        onChange={(event) =>
+                          setProjectProposalFile(
+                            event.target.files?.[0] ?? null,
+                          )
+                        }
+                      />
                     </label>
                     <span className="text-sm text-gray-500 dark:text-gray-400">
-                      No file chosen
+                      {projectProposalFile?.name ?? "No file chosen"}
                     </span>
                   </div>
                 </div>
