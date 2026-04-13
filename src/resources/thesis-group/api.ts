@@ -1,4 +1,5 @@
 import { API_SERVICE } from "@/config/axios-config";
+import { ThesisGroup as AdminThesisGroup } from "@/components/Admin/types";
 import { ThesisGroup, ThesisStatus } from "@/components/Supervisor/types";
 import { AxiosError } from "axios";
 
@@ -98,6 +99,100 @@ export interface GroupDocument {
   updatedAt?: string;
 }
 
+interface AdminThesisGroupResponse {
+  id: string;
+  semesterId: string;
+  classId?: string;
+  globalGroupSerial?: string;
+  supervisorGroup?: string;
+  externalId?: string;
+  externalName?: string;
+  thesisManagementTeamRemark?: string;
+  supervisorRemark?: string;
+  supervisorId: string;
+  supervisorName: string;
+  supervisorEmail: string;
+  proposedTitle: string;
+  thesisDomain: string;
+  shortDescription: string;
+  numberOfStudents: number;
+  acceptTerms: boolean;
+  students: Array<{
+    studentId: string;
+    name: string;
+  }>;
+  documents?: Array<{
+    finalThesisBook?: string | null;
+  }>;
+}
+
+export interface UpdateAdminThesisGroupPayload {
+  classId?: string;
+  externalId?: string;
+  thesisManagementTeamRemark?: string;
+  supervisorRemark?: string;
+}
+
+export interface SupervisorDashboardStats {
+  totalGroups: number;
+  totalStudents: number;
+  completedGroups: number;
+  pendingRequests: number;
+}
+
+export interface GroupsBySemesterItem {
+  semesterId: string;
+  semesterName: string;
+  count: number;
+  students: number;
+  completed: number;
+  ongoing: number;
+}
+
+export interface SupervisorRecentActivity {
+  id: string;
+  type:
+    | "group_created"
+    | "group_updated"
+    | "evidence_uploaded"
+    | "approval_request";
+  title: string;
+  description: string;
+  timestamp: string;
+  groupNo?: string;
+  status: "success" | "warning" | "info";
+}
+
+export interface SupervisorDashboardResponse {
+  stats: SupervisorDashboardStats;
+  groupsBySemester: GroupsBySemesterItem[];
+  recentActivities: SupervisorRecentActivity[];
+}
+
+export interface SupervisorApprovalRequest {
+  id: string;
+  supervisorId: string;
+  semesterId?: string | null;
+  type: "additional_groups" | "extension" | "other";
+  status: "pending" | "approved" | "rejected";
+  requestDate: string;
+  responseDate?: string | null;
+  message: string;
+  groupCount?: number | null;
+  reason?: string | null;
+  attachments: string[];
+}
+
+export interface CreateSupervisorApprovalRequestPayload {
+  supervisorId: string;
+  semesterId?: string;
+  type?: "additional_groups" | "extension" | "other";
+  message: string;
+  groupCount?: number;
+  reason?: string;
+  attachments?: File[];
+}
+
 const toAppError = (error: unknown) => {
   const axiosError = error as AxiosError<{ message?: string | string[] }>;
   const message = axiosError.response?.data?.message;
@@ -124,11 +219,58 @@ const deriveStatus = (group: SupervisorGroupResponse): ThesisStatus => {
 const toUiGroup = (group: SupervisorGroupResponse): ThesisGroup => ({
   id: group.id,
   semesterId: group.semesterId,
+  supervisorId: group.supervisorId,
   name: group.proposedTitle,
   domain: group.thesisDomain,
   groupNo: `Thesis [BSCS][G${group.globalGroupSerial ?? "-"}]`,
   supervisorGroup: group.supervisorGroup,
   status: deriveStatus(group),
+});
+
+const toAdminStatus = (
+  group: AdminThesisGroupResponse,
+): AdminThesisGroup["status"] => {
+  const remark = (group.thesisManagementTeamRemark ?? "").toLowerCase();
+
+  if (remark.includes("cancel")) {
+    return "cancelled";
+  }
+
+  if (remark.includes("resubmit")) {
+    return "resubmitted";
+  }
+
+  if (remark.includes("reject")) {
+    return "action-needed";
+  }
+
+  if (group.documents?.some((doc) => Boolean(doc.finalThesisBook))) {
+    return "complete";
+  }
+
+  if (!group.acceptTerms) {
+    return "action-needed";
+  }
+
+  return "submitted";
+};
+
+const toAdminUiGroup = (group: AdminThesisGroupResponse): AdminThesisGroup => ({
+  id: group.id,
+  classId: group.classId ?? "Thesis BSCS",
+  groupNo: group.supervisorGroup ?? `G${group.globalGroupSerial ?? "-"}`,
+  supervisorId: group.supervisorId,
+  supervisorName: group.supervisorName,
+  extId: group.externalId ?? "",
+  students: (group.students ?? []).map((student) => ({
+    id: student.studentId,
+    name: student.name,
+  })),
+  status: toAdminStatus(group),
+  registrationStatus: group.acceptTerms ? "completed" : "pending",
+  remark: group.supervisorRemark ?? "",
+  thesisMgmtRemark: group.thesisManagementTeamRemark ?? "",
+  isEdited: false,
 });
 
 export const getSupervisorGroupsApi = async (options?: {
@@ -155,6 +297,40 @@ export const getSupervisorGroupsApi = async (options?: {
     );
 
     return data.map(toUiGroup);
+  } catch (error) {
+    throw toAppError(error);
+  }
+};
+
+export const getAdminThesisGroupsApi = async (options?: {
+  semesterId?: string;
+}): Promise<AdminThesisGroup[]> => {
+  try {
+    const params: Record<string, string> = {};
+
+    if (options?.semesterId) {
+      params.semesterId = options.semesterId;
+    }
+
+    const { data } = await API_SERVICE.get<AdminThesisGroupResponse[]>(
+      "/thesis-groups",
+      {
+        params: Object.keys(params).length ? params : undefined,
+      },
+    );
+
+    return data.map(toAdminUiGroup);
+  } catch (error) {
+    throw toAppError(error);
+  }
+};
+
+export const updateAdminThesisGroupApi = async (options: {
+  id: string;
+  payload: UpdateAdminThesisGroupPayload;
+}): Promise<void> => {
+  try {
+    await API_SERVICE.patch(`/thesis-groups/${options.id}`, options.payload);
   } catch (error) {
     throw toAppError(error);
   }
@@ -326,6 +502,100 @@ export const removeGroupDocumentApi = async (options: {
         params: Object.keys(params).length ? params : undefined,
       },
     );
+  } catch (error) {
+    throw toAppError(error);
+  }
+};
+
+export const getSupervisorDashboardApi = async (options?: {
+  supervisorId?: string;
+  semesterId?: string;
+}): Promise<SupervisorDashboardResponse> => {
+  try {
+    const params: Record<string, string> = {};
+    if (options?.supervisorId) {
+      params.supervisorId = options.supervisorId;
+    }
+
+    if (options?.semesterId) {
+      params.semesterId = options.semesterId;
+    }
+
+    const { data } = await API_SERVICE.get<SupervisorDashboardResponse>(
+      "/supervisor/dashboard",
+      {
+        params: Object.keys(params).length ? params : undefined,
+      },
+    );
+
+    return data;
+  } catch (error) {
+    throw toAppError(error);
+  }
+};
+
+export const getSupervisorApprovalRequestsApi = async (options?: {
+  supervisorId?: string;
+  semesterId?: string;
+}): Promise<SupervisorApprovalRequest[]> => {
+  try {
+    const params: Record<string, string> = {};
+    if (options?.supervisorId) {
+      params.supervisorId = options.supervisorId;
+    }
+
+    if (options?.semesterId) {
+      params.semesterId = options.semesterId;
+    }
+
+    const { data } = await API_SERVICE.get<SupervisorApprovalRequest[]>(
+      "/supervisor/approval-requests",
+      {
+        params: Object.keys(params).length ? params : undefined,
+      },
+    );
+
+    return data;
+  } catch (error) {
+    throw toAppError(error);
+  }
+};
+
+export const createSupervisorApprovalRequestApi = async (
+  payload: CreateSupervisorApprovalRequestPayload,
+): Promise<SupervisorApprovalRequest> => {
+  try {
+    const formData = new FormData();
+
+    formData.append("supervisorId", payload.supervisorId);
+    formData.append("message", payload.message);
+
+    if (payload.semesterId) {
+      formData.append("semesterId", payload.semesterId);
+    }
+
+    if (payload.type) {
+      formData.append("type", payload.type);
+    }
+
+    if (payload.groupCount !== undefined) {
+      formData.append("groupCount", String(payload.groupCount));
+    }
+
+    if (payload.reason) {
+      formData.append("reason", payload.reason);
+    }
+
+    for (const attachment of payload.attachments ?? []) {
+      formData.append("attachments", attachment);
+    }
+
+    const { data } = await API_SERVICE.post<SupervisorApprovalRequest>(
+      "/supervisor/approval-requests",
+      formData,
+    );
+
+    return data;
   } catch (error) {
     throw toAppError(error);
   }

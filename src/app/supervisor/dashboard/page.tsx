@@ -1,8 +1,15 @@
-// app/supervisor/dashboard/page.tsx
 "use client";
 
 import { SemesterSelector } from "@/components/Supervisor/SemesterSelector";
 import { useThesisGroups } from "@/hooks/useThesisGroup";
+import {
+  createSupervisorApprovalRequestApi,
+  getSupervisorApprovalRequestsApi,
+  getSupervisorDashboardApi,
+  SupervisorApprovalRequest,
+  SupervisorRecentActivity,
+} from "@/resources/thesis-group/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
@@ -25,163 +32,214 @@ import {
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
-// Types for requests
-interface ApprovalRequest {
-  id: string;
-  type: "additional_groups" | "extension" | "other";
-  status: "pending" | "approved" | "rejected";
-  requestDate: string;
-  responseDate?: string;
-  message: string;
-  attachments?: string[];
-  groupCount?: number;
-  reason?: string;
-}
+const MAX_GROUPS_WITHOUT_APPROVAL = 3;
+
+const formatDate = (value: string) =>
+  new Date(`${value}T00:00:00`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+const formatRelativeTime = (value: string) => {
+  const target = new Date(value).getTime();
+  const now = Date.now();
+  const diffMs = Math.max(0, now - target);
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+  if (diffMinutes < 1) {
+    return "just now";
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes} minute${diffMinutes === 1 ? "" : "s"} ago`;
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
+};
+
+const getDeadlineStatus = (startDate: string, endDate: string) => {
+  const today = new Date();
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T23:59:59`);
+
+  if (today < start) {
+    return "upcoming";
+  }
+
+  if (today > end) {
+    return "completed";
+  }
+
+  return "active";
+};
+
+const resolveDashboardActivityType = (
+  type: SupervisorRecentActivity["type"],
+): "submission" | "review" | "approval" | "comment" => {
+  if (type === "evidence_uploaded") {
+    return "submission";
+  }
+
+  if (type === "approval_request") {
+    return "approval";
+  }
+
+  if (type === "group_updated") {
+    return "review";
+  }
+
+  return "comment";
+};
+
+const resolveDashboardActivityStatus = (
+  status: SupervisorRecentActivity["status"],
+): "success" | "warning" | "info" => status;
 
 export default function SupervisorDashboard() {
-  const { groups, selectedSemester, handleViewDetails, handleSemesterChange } =
-    useThesisGroups();
+  const {
+    groups,
+    semesters,
+    selectedSemesterData,
+    selectedSemester,
+    handleSemesterChange,
+  } = useThesisGroups();
+
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestMessage, setRequestMessage] = useState("");
   const [isRequestSent, setIsRequestSent] = useState(false);
-  const [isRequesting, setIsRequesting] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sample data for groups by semester
-  const groupsBySemester = [
-    {
-      semester: "Spring 2025-26",
-      count: 2,
-      students: 8,
-      completed: 1,
-      ongoing: 1,
-    },
-    {
-      semester: "Fall 2025-26",
-      count: 1,
-      students: 4,
-      completed: 0,
-      ongoing: 1,
-    },
-    {
-      semester: "Summer 2025-26",
-      count: 1,
-      students: 3,
-      completed: 1,
-      ongoing: 0,
-    },
-  ];
-
-  // Sample data for recent activities
-  const recentActivities = [
-    {
-      id: "1",
-      type: "submission",
-      title: "Thesis Submitted",
-      description: "Group G01 submitted final thesis",
-      time: "2 hours ago",
-      groupNo: "G01",
-      status: "success",
-    },
-    {
-      id: "2",
-      type: "review",
-      title: "Review Required",
-      description: "Group G03 needs revision",
-      time: "5 hours ago",
-      groupNo: "G03",
-      status: "warning",
-    },
-    {
-      id: "3",
-      type: "approval",
-      title: "Request Approved",
-      description: "Additional group request approved",
-      time: "1 day ago",
-      groupNo: null,
-      status: "success",
-    },
-    {
-      id: "4",
-      type: "comment",
-      title: "New Comment",
-      description: "Admin added feedback on Group G02",
-      time: "2 days ago",
-      groupNo: "G02",
-      status: "info",
-    },
-  ];
-
-  // Sample data for approval requests
-  const [approvalRequests, setApprovalRequests] = useState<ApprovalRequest[]>([
-    {
-      id: "1",
-      type: "additional_groups",
-      status: "pending",
-      requestDate: "2026-04-01",
-      message:
-        "Requesting approval for 4th thesis group due to high student demand",
-      groupCount: 4,
-      reason: "High student demand in Machine Learning specialization",
-    },
-    {
-      id: "2",
-      type: "additional_groups",
-      status: "approved",
-      requestDate: "2026-03-15",
-      responseDate: "2026-03-18",
-      message: "Request for 3rd group approved",
-      groupCount: 3,
-      reason: "Additional workload capacity",
-    },
-    {
-      id: "3",
-      type: "extension",
-      status: "rejected",
-      requestDate: "2026-03-10",
-      responseDate: "2026-03-12",
-      message: "Request for deadline extension",
-      reason: "Medical emergency",
-    },
-  ]);
-
-  const MAX_GROUPS_WITHOUT_APPROVAL = 3;
+  const supervisorId = groups[0]?.supervisorId ?? "";
   const currentGroupCount = groups.length;
   const needsApproval = currentGroupCount >= MAX_GROUPS_WITHOUT_APPROVAL;
-  const totalStudents = groupsBySemester.reduce(
-    (acc, semester) => acc + semester.students,
-    0,
-  );
-  const pendingRequests = approvalRequests.filter(
-    (r) => r.status === "pending",
-  ).length;
 
-  // Active deadlines data
-  const activeDeadlines = [
-    {
-      title: "Group Creation",
-      startDate: "Jan 10, 2026",
-      endDate: "Feb 20, 2026",
-      status: "active",
-      icon: Users,
+  const dashboardQuery = useQuery({
+    queryKey: ["supervisor-dashboard", supervisorId, selectedSemester],
+    queryFn: () =>
+      getSupervisorDashboardApi({
+        supervisorId: supervisorId || undefined,
+        semesterId: selectedSemester || undefined,
+      }),
+    enabled: Boolean(selectedSemester),
+  });
+
+  const approvalRequestsQuery = useQuery({
+    queryKey: ["supervisor-approval-requests", supervisorId, selectedSemester],
+    queryFn: () =>
+      getSupervisorApprovalRequestsApi({
+        supervisorId: supervisorId || undefined,
+        semesterId: selectedSemester || undefined,
+      }),
+    enabled: Boolean(selectedSemester),
+  });
+
+  const requestApprovalMutation = useMutation({
+    mutationFn: async () => {
+      return createSupervisorApprovalRequestApi({
+        supervisorId: supervisorId || "current-supervisor-id",
+        semesterId: selectedSemester || undefined,
+        type: "additional_groups",
+        message: requestMessage,
+        groupCount: currentGroupCount + 1,
+        reason: requestMessage,
+        attachments: attachedFiles,
+      });
     },
-    {
-      title: "Mid Evidence",
-      startDate: "Mar 10, 2026",
-      endDate: "Mar 25, 2026",
-      status: "upcoming",
-      icon: FileText,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["supervisor-dashboard", supervisorId, selectedSemester],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: [
+            "supervisor-approval-requests",
+            supervisorId,
+            selectedSemester,
+          ],
+        }),
+      ]);
+
+      setIsRequestSent(true);
+      setTimeout(() => {
+        setShowRequestModal(false);
+        setIsRequestSent(false);
+        setRequestMessage("");
+        setAttachedFiles([]);
+      }, 2000);
     },
-    {
-      title: "Final Evidence",
-      startDate: "May 1, 2026",
-      endDate: "May 30, 2026",
-      status: "upcoming",
-      icon: Calendar,
-    },
-  ];
+  });
+
+  const activeDeadlines = selectedSemesterData
+    ? [
+        {
+          title: "Group Creation",
+          startDate: formatDate(selectedSemesterData.groupCreationStart),
+          endDate: formatDate(selectedSemesterData.groupCreationEnd),
+          status: getDeadlineStatus(
+            selectedSemesterData.groupCreationStart,
+            selectedSemesterData.groupCreationEnd,
+          ),
+          icon: Users,
+        },
+        {
+          title: "Mid Evidence",
+          startDate: formatDate(selectedSemesterData.midEvidenceStart),
+          endDate: formatDate(selectedSemesterData.midEvidenceEnd),
+          status: getDeadlineStatus(
+            selectedSemesterData.midEvidenceStart,
+            selectedSemesterData.midEvidenceEnd,
+          ),
+          icon: FileText,
+        },
+        {
+          title: "Final Evidence",
+          startDate: formatDate(selectedSemesterData.finalEvidenceStart),
+          endDate: formatDate(selectedSemesterData.finalEvidenceEnd),
+          status: getDeadlineStatus(
+            selectedSemesterData.finalEvidenceStart,
+            selectedSemesterData.finalEvidenceEnd,
+          ),
+          icon: Calendar,
+        },
+      ]
+    : [];
+
+  const groupsBySemester = dashboardQuery.data?.groupsBySemester ?? [];
+  const recentActivities = (dashboardQuery.data?.recentActivities ?? []).map(
+    (activity) => ({
+      id: activity.id,
+      type: resolveDashboardActivityType(activity.type),
+      title: activity.title,
+      description: activity.description,
+      time: formatRelativeTime(activity.timestamp),
+      groupNo: activity.groupNo ?? null,
+      status: resolveDashboardActivityStatus(activity.status),
+    }),
+  );
+
+  const approvalRequests =
+    approvalRequestsQuery.data ?? ([] as SupervisorApprovalRequest[]);
+
+  const stats = dashboardQuery.data?.stats ?? {
+    totalGroups: groups.length,
+    totalStudents: groupsBySemester.reduce(
+      (acc, item) => acc + item.students,
+      0,
+    ),
+    completedGroups: groups.filter((g) => g.status === "completed").length,
+    pendingRequests: approvalRequests.filter((r) => r.status === "pending")
+      .length,
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -189,6 +247,8 @@ export default function SupervisorDashboard() {
         return "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800";
       case "upcoming":
         return "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800";
+      case "completed":
+        return "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800";
       default:
         return "bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-400";
     }
@@ -252,42 +312,20 @@ export default function SupervisorDashboard() {
   };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   const getFileIcon = (fileType: string) => {
-    if (fileType.includes("pdf")) return "📄";
-    if (fileType.includes("word")) return "📝";
-    if (fileType.includes("image")) return "🖼️";
-    return "📎";
+    if (fileType.includes("pdf")) return "[PDF]";
+    if (fileType.includes("word")) return "[DOC]";
+    if (fileType.includes("image")) return "[IMG]";
+    return "[FILE]";
   };
 
   const handleRequestApproval = async () => {
-    setIsRequesting(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    const newRequest: ApprovalRequest = {
-      id: Date.now().toString(),
-      type: "additional_groups",
-      status: "pending",
-      requestDate: new Date().toISOString(),
-      message: requestMessage,
-      groupCount: currentGroupCount + 1,
-      reason: requestMessage,
-    };
-
-    setApprovalRequests((prev) => [newRequest, ...prev]);
-
-    setIsRequesting(false);
-    setIsRequestSent(true);
-    setTimeout(() => {
-      setShowRequestModal(false);
-      setIsRequestSent(false);
-      setRequestMessage("");
-      setAttachedFiles([]);
-    }, 2000);
+    await requestApprovalMutation.mutateAsync();
   };
 
   const handleAddGroup = () => {
@@ -298,20 +336,20 @@ export default function SupervisorDashboard() {
     }
   };
 
+  const isRequesting = requestApprovalMutation.isPending;
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#040404]">
       <div className="mx-auto max-w-7xl px-4 py-6">
-        {/* Welcome Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-black dark:text-white">
-            Welcome back, Dr. John Smith
+            Welcome back, Supervisor
           </h1>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Here's an overview of your thesis supervision activities
+            Here is an overview of your thesis supervision activities
           </p>
         </div>
 
-        {/* Stats Cards */}
         <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] p-4">
             <div className="flex items-center justify-between mb-2">
@@ -319,14 +357,14 @@ export default function SupervisorDashboard() {
                 <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <span className="text-2xl font-bold text-black dark:text-white">
-                {groups.length}
+                {stats.totalGroups}
               </span>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Total Groups
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-              {selectedSemester}
+              {selectedSemester || "All semesters"}
             </p>
           </div>
 
@@ -336,14 +374,14 @@ export default function SupervisorDashboard() {
                 <UserCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <span className="text-2xl font-bold text-black dark:text-white">
-                {totalStudents}
+                {stats.totalStudents}
               </span>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Total Students
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-              Across all groups
+              Across groups
             </p>
           </div>
 
@@ -353,7 +391,7 @@ export default function SupervisorDashboard() {
                 <TrendingUp className="h-5 w-5 text-purple-600 dark:text-purple-400" />
               </div>
               <span className="text-2xl font-bold text-black dark:text-white">
-                {groups.filter((g) => g.status === "completed").length}
+                {stats.completedGroups}
               </span>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -370,7 +408,7 @@ export default function SupervisorDashboard() {
                 <Clock className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
               </div>
               <span className="text-2xl font-bold text-black dark:text-white">
-                {pendingRequests}
+                {stats.pendingRequests}
               </span>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -382,13 +420,19 @@ export default function SupervisorDashboard() {
           </div>
         </div>
 
-        {/* Active Deadlines Section */}
         <div className="mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <Clock className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-            <h2 className="text-lg font-semibold text-black dark:text-white">
-              Active Deadlines
-            </h2>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+              <h2 className="text-lg font-semibold text-black dark:text-white">
+                Active Deadlines
+              </h2>
+            </div>
+            <SemesterSelector
+              semesters={semesters}
+              selectedSemester={selectedSemester}
+              onSemesterChange={handleSemesterChange}
+            />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {activeDeadlines.map((deadline) => {
@@ -422,21 +466,14 @@ export default function SupervisorDashboard() {
           </div>
         </div>
 
-        {/* Groups by Semester Section */}
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-              <h2 className="text-lg font-semibold text-black dark:text-white">
-                Groups by Semester
-              </h2>
-            </div>
-            <SemesterSelector
-              selectedSemester={selectedSemester}
-              onSemesterChange={handleSemesterChange}
-            />
+          <div className="flex items-center gap-2 mb-3">
+            <BookOpen className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+            <h2 className="text-lg font-semibold text-black dark:text-white">
+              Groups by Semester
+            </h2>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a]">
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-[#050505] rounded-lg">
                 <tr>
@@ -458,36 +495,45 @@ export default function SupervisorDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {groupsBySemester.map((semester) => (
-                  <tr
-                    key={semester.semester}
-                    className="border-t border-gray-200 dark:border-white/10"
-                  >
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                      {semester.semester}
-                    </td>
-                    <td className="px-4 py-3 text-center text-sm text-gray-600 dark:text-gray-400">
-                      {semester.count}
-                    </td>
-                    <td className="px-4 py-3 text-center text-sm text-gray-600 dark:text-gray-400">
-                      {semester.students}
-                    </td>
-                    <td className="px-4 py-3 text-center text-sm text-green-600 dark:text-green-400">
-                      {semester.completed}
-                    </td>
-                    <td className="px-4 py-3 text-center text-sm text-yellow-600 dark:text-yellow-400">
-                      {semester.ongoing}
+                {groupsBySemester.length > 0 ? (
+                  groupsBySemester.map((semester) => (
+                    <tr
+                      key={`${semester.semesterId}-${semester.semesterName}`}
+                      className="border-t border-gray-200 dark:border-white/10"
+                    >
+                      <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                        {semester.semesterName}
+                      </td>
+                      <td className="px-4 py-3 text-center text-sm text-gray-600 dark:text-gray-400">
+                        {semester.count}
+                      </td>
+                      <td className="px-4 py-3 text-center text-sm text-gray-600 dark:text-gray-400">
+                        {semester.students}
+                      </td>
+                      <td className="px-4 py-3 text-center text-sm text-green-600 dark:text-green-400">
+                        {semester.completed}
+                      </td>
+                      <td className="px-4 py-3 text-center text-sm text-yellow-600 dark:text-yellow-400">
+                        {semester.ongoing}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400"
+                    >
+                      No semester summary available.
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Two Column Layout for Recent Activities and Requests */}
         <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Recent Activities */}
           <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] p-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -496,62 +542,64 @@ export default function SupervisorDashboard() {
                   Recent Activities
                 </h2>
               </div>
-              <button className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
-                View All
-              </button>
             </div>
             <div className="space-y-3">
-              {recentActivities.map((activity) => (
-                <div
-                  key={activity.id}
-                  className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5"
-                >
+              {recentActivities.length > 0 ? (
+                recentActivities.map((activity) => (
                   <div
-                    className={`mt-0.5 rounded-full p-1 ${
-                      activity.status === "success"
-                        ? "bg-green-100 dark:bg-green-900/20"
-                        : activity.status === "warning"
-                          ? "bg-yellow-100 dark:bg-yellow-900/20"
-                          : "bg-blue-100 dark:bg-blue-900/20"
-                    }`}
+                    key={activity.id}
+                    className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5"
                   >
-                    {activity.type === "submission" && (
-                      <FileText className="h-3 w-3 text-green-600" />
-                    )}
-                    {activity.type === "review" && (
-                      <AlertTriangle className="h-3 w-3 text-yellow-600" />
-                    )}
-                    {activity.type === "approval" && (
-                      <CheckCircle className="h-3 w-3 text-blue-600" />
-                    )}
-                    {activity.type === "comment" && (
-                      <Activity className="h-3 w-3 text-purple-600" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-medium text-black dark:text-white">
-                        {activity.title}
-                      </h3>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {activity.time}
-                      </span>
+                    <div
+                      className={`mt-0.5 rounded-full p-1 ${
+                        activity.status === "success"
+                          ? "bg-green-100 dark:bg-green-900/20"
+                          : activity.status === "warning"
+                            ? "bg-yellow-100 dark:bg-yellow-900/20"
+                            : "bg-blue-100 dark:bg-blue-900/20"
+                      }`}
+                    >
+                      {activity.type === "submission" && (
+                        <FileText className="h-3 w-3 text-green-600" />
+                      )}
+                      {activity.type === "review" && (
+                        <AlertTriangle className="h-3 w-3 text-yellow-600" />
+                      )}
+                      {activity.type === "approval" && (
+                        <CheckCircle className="h-3 w-3 text-blue-600" />
+                      )}
+                      {activity.type === "comment" && (
+                        <Activity className="h-3 w-3 text-blue-600" />
+                      )}
                     </div>
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                      {activity.description}
-                    </p>
-                    {activity.groupNo && (
-                      <span className="text-xs text-blue-600 dark:text-blue-400 mt-1 inline-block">
-                        Group {activity.groupNo}
-                      </span>
-                    )}
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-medium text-black dark:text-white">
+                          {activity.title}
+                        </h3>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {activity.time}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                        {activity.description}
+                      </p>
+                      {activity.groupNo && (
+                        <span className="text-xs text-blue-600 dark:text-blue-400 mt-1 inline-block">
+                          Group {activity.groupNo}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                  No recent activity yet
+                </p>
+              )}
             </div>
           </div>
 
-          {/* Approval Requests Status */}
           <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] p-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -581,7 +629,9 @@ export default function SupervisorDashboard() {
                         <h3 className="text-sm font-medium text-black dark:text-white">
                           {request.type === "additional_groups"
                             ? "Additional Groups Request"
-                            : "Extension Request"}
+                            : request.type === "extension"
+                              ? "Extension Request"
+                              : "Other Request"}
                         </h3>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                           Requested on{" "}
@@ -615,7 +665,6 @@ export default function SupervisorDashboard() {
           </div>
         </div>
 
-        {/* Groups Limit Warning Banner */}
         {needsApproval && (
           <div className="mb-6">
             <div className="rounded-lg border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 p-4">
@@ -645,7 +694,6 @@ export default function SupervisorDashboard() {
           </div>
         )}
 
-        {/* Request Approval Modal with File Upload */}
         <AnimatePresence>
           {showRequestModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -686,7 +734,7 @@ export default function SupervisorDashboard() {
                       onChange={(e) => setRequestMessage(e.target.value)}
                       rows={4}
                       className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0a0a0a] p-2 text-sm text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
-                      placeholder="e.g., High student demand, specialized expertise, additional workload capacity, etc."
+                      placeholder="e.g., High student demand, specialized expertise, additional workload capacity"
                     />
                   </div>
 
@@ -726,11 +774,11 @@ export default function SupervisorDashboard() {
                               className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#050505] p-2"
                             >
                               <div className="flex items-center gap-2">
-                                <span className="text-lg">
+                                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
                                   {getFileIcon(file.type)}
                                 </span>
                                 <div>
-                                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate max-w-[200px]">
+                                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate max-w-[220px]">
                                     {file.name}
                                   </p>
                                   <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -766,13 +814,24 @@ export default function SupervisorDashboard() {
                       Cancel
                     </button>
                   </div>
+
+                  {(dashboardQuery.isLoading ||
+                    approvalRequestsQuery.isLoading) && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Loading dashboard data...
+                    </p>
+                  )}
+                  {(dashboardQuery.error || approvalRequestsQuery.error) && (
+                    <p className="text-xs text-red-600 dark:text-red-400">
+                      Failed to load some dashboard data.
+                    </p>
+                  )}
                 </div>
               </motion.div>
             </div>
           )}
         </AnimatePresence>
 
-        {/* Success Toast */}
         <AnimatePresence>
           {isRequestSent && (
             <motion.div
@@ -787,7 +846,7 @@ export default function SupervisorDashboard() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-green-800 dark:text-green-300">
-                    Request sent successfully!
+                    Request sent successfully
                   </p>
                   {attachedFiles.length > 0 && (
                     <p className="text-xs text-green-700 dark:text-green-400">

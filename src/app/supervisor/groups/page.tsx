@@ -4,6 +4,8 @@
 import { SemesterSelector } from "@/components/Supervisor/SemesterSelector";
 import { ThesisGroupCard } from "@/components/Supervisor/ThesisGroupCard";
 import { useThesisGroups } from "@/hooks/useThesisGroup";
+import { createSupervisorApprovalRequestApi } from "@/resources/thesis-group/api";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
@@ -32,16 +34,52 @@ export default function SupervisorDashboard() {
     handleSemesterChange,
   } = useThesisGroups();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestMessage, setRequestMessage] = useState("");
   const [isRequestSent, setIsRequestSent] = useState(false);
-  const [isRequesting, setIsRequesting] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const MAX_GROUPS_WITHOUT_APPROVAL = 3;
   const currentGroupCount = groups.length;
   const needsApproval = currentGroupCount >= MAX_GROUPS_WITHOUT_APPROVAL;
+  const supervisorId = groups[0]?.supervisorId ?? "current-supervisor-id";
+
+  const requestApprovalMutation = useMutation({
+    mutationFn: async () =>
+      createSupervisorApprovalRequestApi({
+        supervisorId,
+        semesterId: selectedSemester || undefined,
+        type: "additional_groups",
+        message: requestMessage.trim(),
+        groupCount: currentGroupCount + 1,
+        reason: requestMessage.trim(),
+        attachments: attachedFiles,
+      }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: [
+            "supervisor-approval-requests",
+            supervisorId,
+            selectedSemester,
+          ],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["supervisor-dashboard", supervisorId, selectedSemester],
+        }),
+      ]);
+
+      setIsRequestSent(true);
+      setTimeout(() => {
+        setShowRequestModal(false);
+        setIsRequestSent(false);
+        setRequestMessage("");
+        setAttachedFiles([]);
+      }, 2000);
+    },
+  });
 
   const formatDate = (value: string) =>
     new Date(`${value}T00:00:00`).toLocaleDateString("en-US", {
@@ -159,39 +197,10 @@ export default function SupervisorDashboard() {
   };
 
   const handleRequestApproval = async () => {
-    setIsRequesting(true);
-    // Simulate API call with files
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    const formData = new FormData();
-    formData.append("supervisorId", "current-supervisor-id");
-    formData.append("currentGroups", currentGroupCount.toString());
-    formData.append("message", requestMessage);
-    attachedFiles.forEach((file, index) => {
-      formData.append(`attachment_${index}`, file);
-    });
-
-    console.log("Request sent:", {
-      supervisorId: "current-supervisor-id",
-      currentGroups: currentGroupCount,
-      message: requestMessage,
-      attachments: attachedFiles.map((f) => ({
-        name: f.name,
-        size: f.size,
-        type: f.type,
-      })),
-      timestamp: new Date().toISOString(),
-    });
-
-    setIsRequesting(false);
-    setIsRequestSent(true);
-    setTimeout(() => {
-      setShowRequestModal(false);
-      setIsRequestSent(false);
-      setRequestMessage("");
-      setAttachedFiles([]);
-    }, 2000);
+    await requestApprovalMutation.mutateAsync();
   };
+
+  const isRequesting = requestApprovalMutation.isPending;
 
   const handleAddGroup = () => {
     if (needsApproval) {
@@ -307,7 +316,7 @@ export default function SupervisorDashboard() {
               <div className="flex gap-3">
                 {needsApproval && (
                   <button
-                    onClick={handleRequestApproval}
+                    onClick={() => setShowRequestModal(true)}
                     className="flex items-center gap-2 rounded-lg bg-yellow-600 hover:bg-yellow-700 px-4 py-2 text-sm font-medium text-white transition-colors"
                   >
                     <Send className="h-4 w-4" />
@@ -521,6 +530,14 @@ export default function SupervisorDashboard() {
                       Cancel
                     </button>
                   </div>
+
+                  {requestApprovalMutation.isError && (
+                    <p className="text-xs text-red-600 dark:text-red-400">
+                      {requestApprovalMutation.error instanceof Error
+                        ? requestApprovalMutation.error.message
+                        : "Failed to send request. Please try again."}
+                    </p>
+                  )}
                 </div>
               </motion.div>
             </div>

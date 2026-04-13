@@ -1,6 +1,5 @@
 "use client";
 
-import { useThesisGroups } from "@/hooks/useThesisGroup";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Download, Filter } from "lucide-react";
 import { useState } from "react";
@@ -13,6 +12,9 @@ interface FilterSectionProps {
   onFilterToggle: (filterValue: string) => void;
   onDownload: () => void;
   downloading: boolean;
+  semesters?: Array<{ value: string; label: string }>;
+  selectedSemester: string;
+  onSemesterChange: (value: string) => void;
 }
 
 export function FilterSection({
@@ -21,10 +23,11 @@ export function FilterSection({
   onFilterToggle,
   onDownload,
   downloading,
+  semesters,
+  selectedSemester,
+  onSemesterChange,
 }: FilterSectionProps) {
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
-  const { groups, selectedSemester, handleViewDetails, handleSemesterChange } =
-    useThesisGroups();
 
   return (
     <div className="mb-6">
@@ -41,8 +44,9 @@ export function FilterSection({
         <div className="flex gap-3 items-center">
           <div className="pt-6">
             <SemesterSelector
+              semesters={semesters}
               selectedSemester={selectedSemester}
-              onSemesterChange={handleSemesterChange}
+              onSemesterChange={onSemesterChange}
             />
           </div>
 
