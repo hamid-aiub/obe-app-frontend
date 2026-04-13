@@ -244,6 +244,10 @@ const toAdminStatus = (
     return "action-needed";
   }
 
+  if (remark.includes("approve") || remark.includes("confirm")) {
+    return "complete";
+  }
+
   if (group.documents?.some((doc) => Boolean(doc.finalThesisBook))) {
     return "complete";
   }

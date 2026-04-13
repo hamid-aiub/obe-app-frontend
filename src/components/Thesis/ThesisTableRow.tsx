@@ -101,6 +101,7 @@ export function ThesisTableRow({
         <ActionButtons
           onApprove={() => onSubmit(group.id)}
           onReject={() => onReject(group.id)}
+          status={group.status}
         />
       </td>
     </motion.tr>

@@ -123,7 +123,14 @@ export default function ThesisGroupManagementPage() {
     const group = thesisGroups.find((g) => g.id === groupId);
     if (!group) return;
 
-    const loadingId = toast.loading(`Submitting group ${group.groupNo}...`);
+    const isSubmitted = group.status === "submitted";
+    const loadingId = toast.loading(
+      `${isSubmitted ? "Submitting" : "Confirming"} group ${group.groupNo}...`,
+    );
+
+    const nextRemark = group.thesisMgmtRemark?.trim()
+      ? group.thesisMgmtRemark
+      : "Approved by thesis management team";
 
     try {
       await updateGroupMutation.mutateAsync({
@@ -131,8 +138,7 @@ export default function ThesisGroupManagementPage() {
         payload: {
           classId: group.classId || undefined,
           externalId: group.extId || undefined,
-          thesisManagementTeamRemark:
-            group.thesisMgmtRemark || "Approved by thesis management team",
+          thesisManagementTeamRemark: nextRemark,
         },
       });
 
@@ -141,9 +147,8 @@ export default function ThesisGroupManagementPage() {
           g.id === groupId
             ? {
                 ...g,
-                status: "complete" as const,
-                thesisMgmtRemark:
-                  g.thesisMgmtRemark || "Approved by thesis management team",
+                status: isSubmitted ? ("complete" as const) : g.status,
+                thesisMgmtRemark: nextRemark,
                 isEdited: false,
               }
             : g,
@@ -153,12 +158,17 @@ export default function ThesisGroupManagementPage() {
       await queryClient.invalidateQueries({
         queryKey: ["admin-thesis-groups", selectedSemester],
       });
-      toast.success(`Group ${group.groupNo} has been submitted successfully!`, {
-        id: loadingId,
-      });
+      toast.success(
+        `Group ${group.groupNo} has been ${isSubmitted ? "submitted" : "confirmed"} successfully!`,
+        {
+          id: loadingId,
+        },
+      );
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to submit this group",
+        error instanceof Error
+          ? error.message
+          : `Failed to ${isSubmitted ? "submit" : "confirm"} this group`,
         { id: loadingId },
       );
     }
@@ -168,10 +178,11 @@ export default function ThesisGroupManagementPage() {
     const group = thesisGroups.find((g) => g.id === groupId);
     if (!group) return;
 
-    if (!group.thesisMgmtRemark.trim()) {
-      toast.error("Please add Thesis Mgmt Team Remark before rejecting.");
-      return;
-    }
+    const rejectRemark = group.thesisMgmtRemark?.trim()
+      ? group.thesisMgmtRemark.toLowerCase().startsWith("rejected")
+        ? group.thesisMgmtRemark
+        : `Rejected: ${group.thesisMgmtRemark}`
+      : "Rejected: Needs revision by thesis management team";
 
     const loadingId = toast.loading(`Rejecting group ${group.groupNo}...`);
 
@@ -181,14 +192,19 @@ export default function ThesisGroupManagementPage() {
         payload: {
           classId: group.classId || undefined,
           externalId: group.extId || undefined,
-          thesisManagementTeamRemark: group.thesisMgmtRemark,
+          thesisManagementTeamRemark: rejectRemark,
         },
       });
 
       setThesisGroups((prev) =>
         prev.map((g) =>
           g.id === groupId
-            ? { ...g, status: "action-needed" as const, isEdited: false }
+            ? {
+                ...g,
+                status: "action-needed" as const,
+                thesisMgmtRemark: rejectRemark,
+                isEdited: false,
+              }
             : g,
         ),
       );
