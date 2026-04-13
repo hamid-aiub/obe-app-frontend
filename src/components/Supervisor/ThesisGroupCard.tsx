@@ -19,14 +19,51 @@ export function ThesisGroupCard({
   const status = statusConfig[group.status];
   const StatusIcon = status.icon;
   const router = useRouter();
+  const domainBadgeClasses = [
+    "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-900/20 dark:text-amber-300",
+    "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300",
+    "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-900/20 dark:text-sky-300",
+    "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/60 dark:bg-violet-900/20 dark:text-violet-300",
+    "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300",
+  ];
+
+  const getBadgeColorIndex = (value: string) => {
+    return [...value].reduce((total, char) => total + char.charCodeAt(0), 0);
+  };
+
   const getStatusBadge = () => {
     return (
       <Badge
-        variant="secondary"
-        className={`gap-1.5 px-2 py-0.5 text-xs font-normal ${status.className}`}
+        variant="outline"
+        className={`gap-1.5 mx-0 py-0.5 text-xs font-normal ${status.className}`}
       >
         <StatusIcon className="h-3 w-3" />
         {status.label}
+      </Badge>
+    );
+  };
+  const getDomainBadge = (domain: string) => {
+    const colorClass =
+      domainBadgeClasses[
+        getBadgeColorIndex(domain) % domainBadgeClasses.length
+      ];
+
+    return (
+      <Badge
+        variant="outline"
+        className={`gap-1.5 mx-0 border py-0.5 text-xs font-medium ${colorClass}`}
+      >
+        {domain}
+      </Badge>
+    );
+  };
+  const getGroupBadge = (groupNo: string) => {
+    return (
+      <Badge
+        variant="outline"
+        className="mx-0 border-indigo-200 bg-indigo-50 py-0.5 text-xs font-medium text-indigo-700 dark:border-indigo-900/60 dark:bg-indigo-900/20 dark:text-indigo-300"
+      >
+        {groupNo}
       </Badge>
     );
   };
@@ -47,28 +84,32 @@ export function ThesisGroupCard({
       <CardHeader className="pb-1 pt-3">
         <div className="flex items-start justify-between">
           <div>
-            <h3 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
-              {group.name}
+            <h3 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
+              {group.supervisorGroup ?? "-"} - {group.name.slice(0, 32) + "..."}
             </h3>
             {group.domain ? (
-              <div className="mt-1 space-y-0">
-                <p className="text-xs text-gray-600 dark:text-gray-400">
-                  Domain:{" "}
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {group.domain}
-                  </span>
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-500">
+              <div className="mt-2 space-y-0 flex gap-2">
+                {/* <p className="text-xs text-gray-600 dark:text-gray-400"> */}
+                {/* Domain:{" "} */}
+                {/* <span className="font-medium text-gray-900 dark:text-white mt-2"> */}
+                {getGroupBadge(group.groupNo)} {getDomainBadge(group.domain)}
+                {getStatusBadge()}
+                {/* </span> */}
+                {/* </p> */}
+                {/* <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
                   {group.groupNo}
                 </p>
+                <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                  {getStatusBadge()}
+                </p> */}
               </div>
             ) : (
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">
                 No domain set
               </p>
             )}
           </div>
-          {getStatusBadge()}
+          {/* {getStatusBadge()} */}
         </div>
       </CardHeader>
 

@@ -330,22 +330,24 @@ export default function SupervisorDashboard() {
         </div>
 
         {/* Header with Title */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-black dark:text-white">
-            Thesis Groups
-          </h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Manage and monitor your assigned thesis groups
-          </p>
-        </div>
+        <div className="flex flex-col sm:flex-row sm:justify-between gap-4">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-black dark:text-white">
+              Thesis Groups
+            </h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Manage and monitor your assigned thesis groups
+            </p>
+          </div>
 
-        {/* Semester Selector - Right aligned */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4 mb-6">
-          <SemesterSelector
-            semesters={semesters}
-            selectedSemester={selectedSemester}
-            onSemesterChange={handleSemesterChange}
-          />
+          {/* Semester Selector - Right aligned */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4 mt-3">
+            <SemesterSelector
+              semesters={semesters}
+              selectedSemester={selectedSemester}
+              onSemesterChange={handleSemesterChange}
+            />
+          </div>
         </div>
 
         {/* Deadlines Alert - Keep for backward compatibility */}

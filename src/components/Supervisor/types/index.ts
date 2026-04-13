@@ -13,6 +13,7 @@ export interface ThesisGroup {
   domain: string;
   groupNo: string;
   status: ThesisStatus;
+  supervisorGroup?: string;
 }
 
 export interface StatusConfig {
