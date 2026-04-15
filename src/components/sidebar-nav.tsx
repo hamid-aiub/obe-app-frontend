@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  AlertTriangle,
   CalendarDays,
   ChevronDown,
   DockIcon,
@@ -74,6 +75,11 @@ const menuItems: MenuItem[] = [
         title: "Documents",
         href: "/admin/documents",
         icon: <DockIcon className="h-3 w-3" />,
+      },
+      {
+        title: "Approval Requests",
+        href: "/admin/approval-requests",
+        icon: <AlertTriangle className="h-3 w-3" />,
       },
     ],
   },

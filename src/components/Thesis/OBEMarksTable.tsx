@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import { Download, XCircle } from "lucide-react";
 import { OBEGroup } from "../Admin/types";
 
@@ -115,8 +116,8 @@ export function OBEMarksTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-white/10">
-            {groups.map((group) => (
-              <>
+            {groups.map((group, index) => (
+              <Fragment key={group.groupNo}>
                 {group.students.map((student, studentIndex) => (
                   <tr
                     key={`${group.groupNo}-${student.studentId}`}
@@ -322,7 +323,7 @@ export function OBEMarksTable({
                     </td>
                   </tr>
                 ))}
-              </>
+              </Fragment>
             ))}
           </tbody>
         </table>

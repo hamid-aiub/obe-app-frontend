@@ -4,86 +4,162 @@ import { OBEGroup } from "@/components/Admin/types";
 import { SemesterSelector } from "@/components/Supervisor/SemesterSelector";
 import { DownloadButton } from "@/components/Thesis/DownloadButton";
 import { OBEMarksTable } from "@/components/Thesis/OBEMarksTable";
-import { useState } from "react";
-
+import { useState, useMemo, useEffect } from "react";
+import { useAdminThesisGroups } from "@/hooks/useAdminThesisGroups";
+import { AdminThesisGroup } from "@/resources/admin/api";
+import { getSemestersApi, Semester } from "@/resources/semester/api";
+import {
+  getGroupDocumentsApi,
+  GroupDocument,
+} from "@/resources/thesis-group/api";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { downloadOBEMarksCSV } from "@/utils/csvExport";
 
 export default function OBEMarksPage() {
-  const [selectedSemester, setSelectedSemester] = useState("Spring 2025-26");
+  const [selectedSemester, setSelectedSemester] = useState<string>("");
   const [isDownloading, setIsDownloading] = useState(false);
+  const [groupsWithDocuments, setGroupsWithDocuments] = useState<
+    Array<AdminThesisGroup & { documents?: GroupDocument | null }>
+  >([]);
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
 
-  // Sample data with multiple students per group
-  const groups: OBEGroup[] = [
-    {
-      groupNo: "Thesis [BSCS] G01",
-      classId: "BSCS",
-      supervisorId: "2401-2401-2",
-      supervisorName: "Mr. Supervisor",
-      students: [
-        {
-          studentId: "24-93227-1",
-          studentName: "John Doe",
-          cos: { co1: 4, co2: 3, co3: 4, co4: 3, co5: 4 },
+  // Fetch semesters
+  const semestersQuery = useQuery({
+    queryKey: ["semesters"],
+    queryFn: getSemestersApi,
+  });
+
+  // Map semesters to selector format
+  const semesterOptions = useMemo(
+    () =>
+      (semestersQuery.data || []).map((semester) => ({
+        value: semester.id,
+        label: semester.semesterName,
+      })),
+    [semestersQuery.data],
+  );
+
+  // Set default semester
+  useMemo(() => {
+    if (!selectedSemester && semesterOptions.length > 0) {
+      setSelectedSemester(semesterOptions[0].value);
+    }
+  }, [selectedSemester, semesterOptions]);
+
+  // Fetch thesis groups
+  const adminGroupsQuery = useAdminThesisGroups({
+    semesterId: selectedSemester,
+    enabled: !!selectedSemester,
+  });
+
+  // Fetch documents for each group
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      if (!adminGroupsQuery.groups || adminGroupsQuery.groups.length === 0) {
+        setGroupsWithDocuments([]);
+        return;
+      }
+
+      setIsLoadingDocuments(true);
+      try {
+        const groupsWithDocs: any[] = await Promise.all(
+          adminGroupsQuery.groups.map(async (group) => {
+            try {
+              const documents = await getGroupDocumentsApi({
+                groupId: group.id,
+                semesterId: selectedSemester,
+              });
+              return {
+                ...group,
+                documents: documents as unknown as GroupDocument | null,
+              };
+            } catch {
+              return {
+                ...group,
+                documents: null as unknown as GroupDocument | null,
+              };
+            }
+          }),
+        );
+        setGroupsWithDocuments(groupsWithDocs);
+      } catch (error) {
+        console.error("Failed to fetch documents:", error);
+      } finally {
+        setIsLoadingDocuments(false);
+      }
+    };
+
+    fetchDocuments();
+  }, [adminGroupsQuery.groups, selectedSemester]);
+
+  // Transform API data to component format
+  const groups: OBEGroup[] = useMemo(() => {
+    return groupsWithDocuments.map((group: any) => {
+      const document = group.documents;
+
+      return {
+        groupNo: group.supervisorGroup || group.globalGroupSerial || "N/A",
+        classId: group.classId || "BSCS",
+        supervisorId: group.supervisorId,
+        supervisorName: group.supervisorName,
+        students: group.students.map((student: any) => {
+          const marks = group.obeMarks?.[student.id] || {
+            co1: 0,
+            co2: 0,
+            co3: 0,
+            co4: 0,
+            co5: 0,
+          };
+          return {
+            studentId: student.studentId,
+            studentName: student.name,
+            cos: {
+              co1: marks.co1,
+              co2: marks.co2,
+              co3: marks.co3,
+              co4: marks.co4,
+              co5: marks.co5,
+            },
+          };
+        }),
+        submissions: {
+          researchProposal: !!document?.projectProposal,
+          literatureReview: !!document?.literatureReview,
+          methodology: !!document?.progressReport,
+          book: !!document?.finalThesisBook,
+          plagiarismReport: !!document?.plagiarismReport,
+          aiReport: !!document?.aiDetectionReport,
+          slide: !!document?.presentationSlide,
+          poster: !!document?.poster,
+          obeMarksheet: false,
         },
-        {
-          studentId: "24-93227-2",
-          studentName: "Jane Smith",
-          cos: { co1: 3, co2: 4, co3: 3, co4: 4, co5: 3 },
-        },
-        {
-          studentId: "24-93227-3",
-          studentName: "Bob Johnson",
-          cos: { co1: 2, co2: 3, co3: 2, co4: 3, co5: 2 },
-        },
-      ],
-      submissions: {
-        researchProposal: true,
-        literatureReview: true,
-        methodology: true,
-        book: true,
-        plagiarismReport: false,
-        aiReport: true,
-        slide: true,
-        poster: true,
-        obeMarksheet: false,
-      },
-    },
-    {
-      groupNo: "Thesis [BSCS] G02",
-      classId: "BSCS",
-      supervisorId: "2401-2401-3",
-      supervisorName: "Dr. Sarah Johnson",
-      students: [
-        {
-          studentId: "24-93228-1",
-          studentName: "Alice Brown",
-          cos: { co1: 4, co2: 4, co3: 3, co4: 4, co5: 3 },
-        },
-        {
-          studentId: "24-93228-2",
-          studentName: "Charlie Wilson",
-          cos: { co1: 3, co2: 3, co3: 4, co4: 3, co5: 4 },
-        },
-      ],
-      submissions: {
-        researchProposal: true,
-        literatureReview: false,
-        methodology: true,
-        book: true,
-        plagiarismReport: true,
-        aiReport: true,
-        slide: false,
-        poster: true,
-        obeMarksheet: true,
-      },
-    },
-  ];
+      };
+    });
+  }, [groupsWithDocuments]);
 
   const handleDownload = async () => {
+    if (!groups || groups.length === 0) {
+      toast.error("No groups available to download");
+      return;
+    }
+
     setIsDownloading(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    toast.success("OBE Marks downloaded successfully!");
-    setIsDownloading(false);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const semesterName =
+        semestersQuery.data?.find((s) => s.id === selectedSemester)
+          ?.semesterName || "Unknown";
+
+      downloadOBEMarksCSV(adminGroupsQuery.groups, semesterName);
+      toast.success("OBE Marks downloaded successfully!");
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error("Failed to download OBE Marks");
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const handleDocumentDownload = (groupId: string, documentType: string) => {
@@ -91,6 +167,11 @@ export default function OBEMarksPage() {
     console.log(`Downloading ${documentType} for group ${groupId}`);
     // Implement actual download logic here
   };
+
+  const isLoading =
+    semestersQuery.isLoading ||
+    adminGroupsQuery.isLoading ||
+    isLoadingDocuments;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#050505]">
@@ -104,22 +185,45 @@ export default function OBEMarksPage() {
           </p>
         </div>
 
-        <SemesterSelector
-          selectedSemester={selectedSemester}
-          onSemesterChange={setSelectedSemester}
-        />
+        {semesterOptions && semesterOptions.length > 0 && (
+          <SemesterSelector
+            selectedSemester={selectedSemester}
+            onSemesterChange={setSelectedSemester}
+            semesters={semesterOptions}
+          />
+        )}
 
         <DownloadButton
           onDownload={handleDownload}
           isDownloading={isDownloading}
         />
 
-        <div className="mt-6">
-          <OBEMarksTable
-            groups={groups}
-            onDownloadDocument={handleDocumentDownload}
-          />
-        </div>
+        {adminGroupsQuery.isError && (
+          <div className="mt-4 p-4 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 rounded-lg">
+            Failed to load thesis groups. Please try again.
+          </div>
+        )}
+
+        {isLoading && (
+          <div className="mt-6 flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          </div>
+        )}
+
+        {!isLoading && groups.length === 0 && selectedSemester && (
+          <div className="mt-6 p-4 bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200 rounded-lg">
+            No thesis groups found for the selected semester.
+          </div>
+        )}
+
+        {!isLoading && groups.length > 0 && (
+          <div className="mt-6">
+            <OBEMarksTable
+              groups={groups}
+              onDownloadDocument={handleDocumentDownload}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

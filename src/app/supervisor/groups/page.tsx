@@ -4,8 +4,11 @@
 import { SemesterSelector } from "@/components/Supervisor/SemesterSelector";
 import { ThesisGroupCard } from "@/components/Supervisor/ThesisGroupCard";
 import { useThesisGroups } from "@/hooks/useThesisGroup";
-import { createSupervisorApprovalRequestApi } from "@/resources/thesis-group/api";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  createSupervisorApprovalRequestApi,
+  getSupervisorApprovalRequestsApi,
+} from "@/resources/thesis-group/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
@@ -43,8 +46,46 @@ export default function SupervisorDashboard() {
 
   const MAX_GROUPS_WITHOUT_APPROVAL = 3;
   const currentGroupCount = groups.length;
-  const needsApproval = currentGroupCount >= MAX_GROUPS_WITHOUT_APPROVAL;
   const supervisorId = groups[0]?.supervisorId ?? "current-supervisor-id";
+
+  const approvalRequestsQuery = useQuery({
+    queryKey: ["supervisor-approval-requests", supervisorId, selectedSemester],
+    queryFn: () =>
+      getSupervisorApprovalRequestsApi({
+        supervisorId,
+        semesterId: selectedSemester || undefined,
+      }),
+    enabled:
+      Boolean(selectedSemester) && supervisorId !== "current-supervisor-id",
+  });
+
+  const approvedGroupLimit = Math.max(
+    MAX_GROUPS_WITHOUT_APPROVAL,
+    ...(approvalRequestsQuery.data ?? [])
+      .filter(
+        (request) =>
+          request.status === "approved" && request.type === "additional_groups",
+      )
+      .map((request) => request.groupCount ?? 0),
+  );
+
+  const lastRequestedGroupCount = Math.max(
+    approvedGroupLimit,
+    ...(approvalRequestsQuery.data ?? [])
+      .filter(
+        (request) =>
+          request.type === "additional_groups" && request.status !== "rejected",
+      )
+      .map((request) => request.groupCount ?? 0),
+  );
+
+  const nextRequestedGroupCount = lastRequestedGroupCount + 1;
+
+  const needsApproval = currentGroupCount >= approvedGroupLimit;
+  const remainingGroupsWithoutNewApproval = Math.max(
+    approvedGroupLimit - currentGroupCount,
+    0,
+  );
 
   const requestApprovalMutation = useMutation({
     mutationFn: async () =>
@@ -53,7 +94,7 @@ export default function SupervisorDashboard() {
         semesterId: selectedSemester || undefined,
         type: "additional_groups",
         message: requestMessage.trim(),
-        groupCount: currentGroupCount + 1,
+        groupCount: nextRequestedGroupCount,
         reason: requestMessage.trim(),
         attachments: attachedFiles,
       }),
@@ -308,13 +349,13 @@ export default function SupervisorDashboard() {
                     }`}
                   >
                     {needsApproval
-                      ? `You currently have ${currentGroupCount} thesis groups. For more than ${MAX_GROUPS_WITHOUT_APPROVAL} groups, you need approval from the department.`
-                      : `You have ${currentGroupCount} of ${MAX_GROUPS_WITHOUT_APPROVAL} groups allowed without approval. You can add ${MAX_GROUPS_WITHOUT_APPROVAL - currentGroupCount} more group(s) directly.`}
+                      ? `You currently have ${currentGroupCount} thesis groups. For more than ${approvedGroupLimit} groups, you need approval from the department.`
+                      : `You have ${currentGroupCount} of ${approvedGroupLimit} groups currently allowed. You can add ${remainingGroupsWithoutNewApproval} more group(s) directly.`}
                   </p>
                 </div>
               </div>
               <div className="flex gap-3">
-                {needsApproval && (
+                {needsApproval ? (
                   <button
                     onClick={() => setShowRequestModal(true)}
                     className="flex items-center gap-2 rounded-lg bg-yellow-600 hover:bg-yellow-700 px-4 py-2 text-sm font-medium text-white transition-colors"
@@ -322,17 +363,18 @@ export default function SupervisorDashboard() {
                     <Send className="h-4 w-4" />
                     Request Approval
                   </button>
+                ) : (
+                  <button
+                    onClick={handleAddGroup}
+                    className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                      needsApproval
+                        ? "border border-yellow-600 bg-transparent text-yellow-600 hover:bg-yellow-50 dark:text-yellow-400 dark:hover:bg-yellow-900/20"
+                        : "bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200"
+                    }`}
+                  >
+                    <span>+ Add Group</span>
+                  </button>
                 )}
-                <button
-                  onClick={handleAddGroup}
-                  className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                    needsApproval
-                      ? "border border-yellow-600 bg-transparent text-yellow-600 hover:bg-yellow-50 dark:text-yellow-400 dark:hover:bg-yellow-900/20"
-                      : "bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200"
-                  }`}
-                >
-                  <span>+ Add Group</span>
-                </button>
               </div>
             </div>
           </div>
@@ -433,8 +475,8 @@ export default function SupervisorDashboard() {
                   <div className="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 p-3">
                     <p className="text-sm text-yellow-800 dark:text-yellow-300">
                       You currently have {currentGroupCount} thesis groups.
-                      Adding more than {MAX_GROUPS_WITHOUT_APPROVAL} groups
-                      requires department approval. Please provide a reason and
+                      Adding more than {approvedGroupLimit} groups requires
+                      department approval. Please provide a reason and
                       supporting documents.
                     </p>
                   </div>

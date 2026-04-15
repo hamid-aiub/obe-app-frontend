@@ -193,6 +193,15 @@ export interface CreateSupervisorApprovalRequestPayload {
   attachments?: File[];
 }
 
+export interface GetAdminApprovalRequestsOptions {
+  status?: "pending" | "approved" | "rejected";
+  semesterId?: string;
+}
+
+export interface RespondAdminApprovalRequestPayload {
+  status: "approved" | "rejected";
+}
+
 const toAppError = (error: unknown) => {
   const axiosError = error as AxiosError<{ message?: string | string[] }>;
   const message = axiosError.response?.data?.message;
@@ -597,6 +606,49 @@ export const createSupervisorApprovalRequestApi = async (
     const { data } = await API_SERVICE.post<SupervisorApprovalRequest>(
       "/supervisor/approval-requests",
       formData,
+    );
+
+    return data;
+  } catch (error) {
+    throw toAppError(error);
+  }
+};
+
+export const getAdminApprovalRequestsApi = async (
+  options?: GetAdminApprovalRequestsOptions,
+): Promise<SupervisorApprovalRequest[]> => {
+  try {
+    const params: Record<string, string> = {};
+
+    if (options?.status) {
+      params.status = options.status;
+    }
+
+    if (options?.semesterId) {
+      params.semesterId = options.semesterId;
+    }
+
+    const { data } = await API_SERVICE.get<SupervisorApprovalRequest[]>(
+      "/admin/approval-requests",
+      {
+        params: Object.keys(params).length ? params : undefined,
+      },
+    );
+
+    return data;
+  } catch (error) {
+    throw toAppError(error);
+  }
+};
+
+export const respondAdminApprovalRequestApi = async (
+  requestId: string,
+  payload: RespondAdminApprovalRequestPayload,
+): Promise<SupervisorApprovalRequest> => {
+  try {
+    const { data } = await API_SERVICE.patch<SupervisorApprovalRequest>(
+      `/admin/approval-requests/${requestId}/respond`,
+      payload,
     );
 
     return data;
