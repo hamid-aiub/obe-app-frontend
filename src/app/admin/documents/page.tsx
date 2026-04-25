@@ -16,11 +16,15 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { downloadOBEMarksCSV } from "@/utils/csvExport";
 
+type AdminGroupWithDocument = Omit<AdminThesisGroup, "documents"> & {
+  documents?: GroupDocument | null;
+};
+
 export default function OBEMarksPage() {
   const [selectedSemester, setSelectedSemester] = useState<string>("");
   const [isDownloading, setIsDownloading] = useState(false);
   const [groupsWithDocuments, setGroupsWithDocuments] = useState<
-    Array<AdminThesisGroup & { documents?: GroupDocument | null }>
+    AdminGroupWithDocument[]
   >([]);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
 
@@ -41,7 +45,7 @@ export default function OBEMarksPage() {
   );
 
   // Set default semester
-  useMemo(() => {
+  useEffect(() => {
     if (!selectedSemester && semesterOptions.length > 0) {
       setSelectedSemester(semesterOptions[0].value);
     }
@@ -53,17 +57,25 @@ export default function OBEMarksPage() {
     enabled: !!selectedSemester,
   });
 
+  const groupsKey = useMemo(
+    () => adminGroupsQuery.groups.map((group) => group.id).join("|"),
+    [adminGroupsQuery.groups],
+  );
+
   // Fetch documents for each group
   useEffect(() => {
+    let isMounted = true;
+
     const fetchDocuments = async () => {
-      if (!adminGroupsQuery.groups || adminGroupsQuery.groups.length === 0) {
-        setGroupsWithDocuments([]);
+      if (!selectedSemester || adminGroupsQuery.groups.length === 0) {
+        setGroupsWithDocuments((prev) => (prev.length === 0 ? prev : []));
+        setIsLoadingDocuments(false);
         return;
       }
 
       setIsLoadingDocuments(true);
       try {
-        const groupsWithDocs: any[] = await Promise.all(
+        const groupsWithDocs: AdminGroupWithDocument[] = await Promise.all(
           adminGroupsQuery.groups.map(async (group) => {
             try {
               const documents = await getGroupDocumentsApi({
@@ -82,16 +94,25 @@ export default function OBEMarksPage() {
             }
           }),
         );
-        setGroupsWithDocuments(groupsWithDocs);
+
+        if (isMounted) {
+          setGroupsWithDocuments(groupsWithDocs);
+        }
       } catch (error) {
         console.error("Failed to fetch documents:", error);
       } finally {
-        setIsLoadingDocuments(false);
+        if (isMounted) {
+          setIsLoadingDocuments(false);
+        }
       }
     };
 
     fetchDocuments();
-  }, [adminGroupsQuery.groups, selectedSemester]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [groupsKey, selectedSemester]);
 
   // Transform API data to component format
   const groups: OBEGroup[] = useMemo(() => {

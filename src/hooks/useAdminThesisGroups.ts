@@ -25,7 +25,7 @@ export function useAdminThesisGroups(
   const { semesterId, enabled = true } = options;
 
   const query = useQuery<AdminThesisGroup[]>({
-    queryKey: ["admin-thesis-groups", semesterId],
+    queryKey: ["admin-documents-thesis-groups", semesterId],
     queryFn: () =>
       getAdminThesisGroupsApi({
         semesterId,
